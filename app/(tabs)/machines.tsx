@@ -7,6 +7,7 @@ import { Spacing } from '../../src/Constants/Spacing';
 import { transactionService } from '../../src/Api/transactionService';
 import { Transaction, TransactionType } from '../../src/Types/transaction';
 import { ScreenHeader } from '../../src/Shared/Header';
+import { SectionHeader } from '../../src/Components/Ui/SectionHeader';
 import { TransactionCard } from '../../src/Components/Cards/TransactionCard';
 import { MachineCardSkeleton } from '../../src/Components/Ui/Skeleton';
 import { ErrorState } from '../../src/Components/Ui/ErrorState';
@@ -78,11 +79,13 @@ export default function TransactionsScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.content}>
           <ScreenHeader title="İşlemler" subtitle={`Toplam ${transactions.length} işlem (gram)`} />
+          <SectionHeader title="İşlem tipi" showLine={false} />
           <FilterSegment
             options={filterOptions}
             selected={selectedFilter}
             onSelect={(opt) => setSelectedFilter(opt as FilterOption)}
           />
+          <SectionHeader title="İşlem listesi" />
           <MachineCardSkeleton />
           <MachineCardSkeleton />
           <MachineCardSkeleton />
@@ -119,11 +122,13 @@ export default function TransactionsScreen() {
         ListHeaderComponent={
           <>
             <ScreenHeader title="İşlemler" subtitle={`Toplam ${transactions.length} işlem (gram)`} />
+            <SectionHeader title="İşlem tipi" showLine={false} />
             <FilterSegment
               options={filterOptions}
               selected={selectedFilter}
               onSelect={(opt) => setSelectedFilter(opt as FilterOption)}
             />
+            <SectionHeader title="İşlem listesi" />
           </>
         }
         ListEmptyComponent={

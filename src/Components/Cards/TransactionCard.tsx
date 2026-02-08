@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../Constants/Colors';
+import { Spacing } from '../../Constants/Spacing';
 import { Transaction, transactionTypeLabel } from '../../Types/transaction';
 import { useResponsive } from '../../Hooks/UseResponsive';
 
@@ -37,13 +38,13 @@ export const TransactionCard = ({ transaction, onPress }: Props) => {
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, { borderLeftColor: typeColor }]}
       onPress={onPress}
-      activeOpacity={0.7}
+      activeOpacity={0.82}
       accessibilityRole="button"
     >
       <View style={styles.header}>
-        <View style={[styles.typeBadge, { backgroundColor: typeColor + '20' }]}>
+        <View style={[styles.typeBadge, { backgroundColor: typeColor + '22', borderColor: typeColor + '44' }]}>
           <Ionicons name={typeIcon as any} size={14} color={typeColor} />
           <Text style={[styles.typeText, { color: typeColor, fontSize: calculateFontSize(12) }]}>
             {transactionTypeLabel[transaction.type]}
@@ -78,9 +79,12 @@ export const TransactionCard = ({ transaction, onPress }: Props) => {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: Spacing.radiusXl,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderLeftWidth: 4,
   },
   header: {
     flexDirection: 'row',
@@ -92,9 +96,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
+    paddingVertical: 5,
+    borderRadius: 10,
     gap: 6,
+    borderWidth: 1,
   },
   typeText: {
     fontWeight: '600',

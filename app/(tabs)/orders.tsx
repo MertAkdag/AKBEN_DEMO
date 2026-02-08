@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '../../src/Shared/Header';
+import { SectionHeader } from '../../src/Components/Ui/SectionHeader';
 import { SearchInput } from '../../src/Components/Ui/SearchInput';
 import { FilterSegment } from '../../src/Components/Ui/FilterSegmented';
 import { CariCard } from '../../src/Components/Cards/CariCard';
@@ -98,7 +99,7 @@ export default function CarilerScreen() {
           rightIcon="add"
           onRightPress={handleAddCari}
         />
-
+        <SectionHeader title="Ara ve filtrele" showLine={false} />
         <SearchInput
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -113,7 +114,7 @@ export default function CarilerScreen() {
             if (entry) setSelectedFilter(entry[0] as CariFilterOption);
           }}
         />
-
+        <SectionHeader title="Cari listesi" />
         {isLoading ? (
           renderSkeletons()
         ) : (

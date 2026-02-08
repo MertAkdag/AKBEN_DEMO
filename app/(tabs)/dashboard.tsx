@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, RefreshControl, Dimensions, Platform } from 're
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Path, Line, Text as SvgText, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Path, Line, Text as SvgText, Circle, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { Colors } from '../../src/Constants/Colors';
 import { Spacing } from '../../src/Constants/Spacing';
 import { ScreenHeader } from '../../src/Shared/Header';
@@ -68,6 +68,7 @@ export default function DashboardScreen() {
   ] : [];
 
   const screenWidth = Dimensions.get('window').width;
+  const heroHeight = 100;
   const chartWidth = screenWidth - 80;
   const chartHeight = 220;
   const chartPadding = { top: 40, right: 20, bottom: 30, left: 20 };
@@ -285,23 +286,35 @@ export default function DashboardScreen() {
         <ScreenHeader title="Özet" subtitle="Gram bazlı satış, alış ve kar" />
 
         {/* Hero */}
-        <View style={styles.hero}>
+        <View style={[styles.hero, { height: calculateHeight(heroHeight) }]}>
+          <Svg style={StyleSheet.absoluteFill} width={screenWidth} height={calculateHeight(heroHeight)}>
+            <Defs>
+              <LinearGradient id="heroGrad" x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor={Colors.primary} stopOpacity="0.08" />
+                <Stop offset="0.5" stopColor={Colors.card} />
+                <Stop offset="1" stopColor={Colors.primary} stopOpacity="0.04" />
+              </LinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width={screenWidth} height={calculateHeight(heroHeight)} fill="url(#heroGrad)" />
+          </Svg>
           <View style={styles.heroAccent} />
           <View style={styles.heroIconWrap}>
-            <Ionicons name="calendar-outline" size={20} color={Colors.primary} />
+            <Ionicons name="calendar" size={24} color={Colors.primary} />
           </View>
           <View style={styles.heroTextWrap}>
             <Text style={styles.heroLabel}>Bugünkü özet</Text>
             <Text style={styles.heroDate}>{welcomeDate}</Text>
+            <View style={styles.heroLine} />
           </View>
           <View style={styles.heroGoldWrap}>
-            <Ionicons name="diamond-outline" size={16} color={Colors.primary} />
-            <Text style={styles.heroGoldLabel}>Has (gr)</Text>
-            <Text style={styles.heroGoldValue}>
-              {goldPrice != null
-                ? `${goldPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺`
-                : '—'}
-            </Text>
+            <View style={styles.heroGoldPill}>
+              <Ionicons name="diamond" size={14} color={Colors.primary} />
+              <Text style={styles.heroGoldValue}>
+                {goldPrice != null
+                  ? `${goldPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺`
+                  : '—'}
+              </Text>
+            </View>
             {goldPriceIsFallback && (
               <Text style={styles.heroGoldFallbackHint}>güncel değil</Text>
             )}
@@ -309,7 +322,10 @@ export default function DashboardScreen() {
         </View>
 
         {/* Gram özeti başlığı */}
-        <Text style={styles.sectionTitle}>Gram özeti</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Gram özeti</Text>
+          <View style={styles.sectionTitleLine} />
+        </View>
         <View style={styles.statsGrid}>
           {statsCards.map((stat, index) => (
             <View key={index} style={styles.statCardWrapper}>
@@ -336,10 +352,16 @@ export default function DashboardScreen() {
 
         {/* Haftalık kar grafiği */}
         <View style={styles.chartBlock}>
-          <Text style={styles.sectionTitle}>Haftalık kar</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Haftalık kar</Text>
+            <View style={styles.sectionTitleLine} />
+          </View>
           <View style={styles.chartSection}>
             {renderWeeklyChart()}
-            <Text style={styles.chartHint}>Grafiği sola-sağa kaydırarak günlük değeri inceleyin</Text>
+            <View style={styles.chartHintWrap}>
+              <Ionicons name="hand-left-outline" size={14} color={Colors.subtext} />
+              <Text style={styles.chartHint}>Kaydırarak günlük değeri inceleyin</Text>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -415,38 +437,56 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'capitalize',
   },
+  heroLine: {
+    width: 28,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: Colors.primary,
+    marginTop: 8,
+  },
   heroGoldWrap: {
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingLeft: Spacing.md,
-    borderLeftWidth: 1,
-    borderLeftColor: Colors.border,
   },
-  heroGoldLabel: {
-    color: Colors.subtext,
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 2,
+  heroGoldPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primary + '22',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.primary + '44',
   },
   heroGoldValue: {
     color: Colors.primary,
     fontSize: 14,
     fontWeight: '700',
-    marginTop: 2,
   },
   heroGoldFallbackHint: {
     color: Colors.subtext,
     fontSize: 9,
-    marginTop: 2,
+    marginTop: 6,
     fontStyle: 'italic',
+  },
+  sectionHeader: {
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.lg,
   },
   sectionTitle: {
     color: Colors.subtext,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 0.8,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.xs,
+  },
+  sectionTitleLine: {
+    width: 24,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: Colors.primary,
+    marginTop: 6,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -459,18 +499,19 @@ const styles = StyleSheet.create({
   },
   statCard: {
     backgroundColor: Colors.card,
-    borderRadius: Spacing.radiusLg,
+    borderRadius: Spacing.radiusXl,
     padding: Spacing.lg,
     borderLeftWidth: 4,
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: Colors.border,
+    overflow: 'hidden',
     ...cardShadow,
   },
   statIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -493,11 +534,23 @@ const styles = StyleSheet.create({
   chartSection: {
     marginTop: Spacing.sm,
   },
+  chartHintWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.card,
+    borderRadius: 999,
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
   chartHint: {
     color: Colors.subtext,
     fontSize: 11,
-    marginTop: Spacing.sm,
-    textAlign: 'center',
   },
   chartCard: {
     backgroundColor: Colors.card,
@@ -506,6 +559,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.primary + '22',
+    borderTopWidth: 2,
+    borderTopColor: Colors.primary + '44',
     position: 'relative',
     overflow: 'hidden',
     ...cardShadow,

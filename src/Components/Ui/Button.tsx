@@ -12,6 +12,8 @@ interface Props extends TouchableOpacityProps {
   size?: ButtonSize;       
   isLoading?: boolean;
   icon?: React.ReactNode;
+  /** Form ekranları için tam genişlik */
+  fullWidth?: boolean;
 }
 
 export const Button = ({ 
@@ -19,6 +21,7 @@ export const Button = ({
   variant = 'primary', 
   size = 'default', 
   isLoading, 
+  fullWidth,
   style, 
   disabled, 
   ...props 
@@ -64,14 +67,15 @@ export const Button = ({
   const borderRadius = calculateWidth(12);
   const horizontalPadding = calculateWidth(16);
   const BaseStyle = {
-    width: calculateWidth(300),
-    height: calculateHeight(50),
+    width: fullWidth ? '100%' as const : calculateWidth(300),
+    height: containerHeight,
   };
   return (
     <TouchableOpacity
       style={[
-        styles.base, BaseStyle,
-        { height: containerHeight, borderRadius, paddingHorizontal: horizontalPadding },
+        styles.base,
+        { borderRadius, paddingHorizontal: horizontalPadding },
+        BaseStyle,
         getContainerStyle(),
         disabled && styles.disabled,
         style, 

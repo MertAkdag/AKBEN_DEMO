@@ -20,59 +20,61 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-// Giriş kontrolü kapalı: Varsayılan misafir kullanıcı ile her zaman giriş yapılmış sayılır
-const GUEST_USER: User = {
-  id: 'guest',
-  email: 'guest@local',
-  name: 'Misafir',
-  role: 'user',
-};
-
 export const AuthProvider = ({ children }: PropsWithChildren) => {
-  const [user, setUser] = useState<User | null>(GUEST_USER);
-  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const segments = useSegments();
   const router = useRouter();
   const navigationState = useRootNavigationState();
 
-  // Giriş kontrolü devre dışı: Kayıtlı kullanıcı/token kontrolü yapılmıyor
-
-  // Yönlendirme: Root layout mount olduktan sonra dashboard'a yönlendir
+  // Uygulama açılışında kayıtlı kullanıcı varsa yükle (demo veya gerçek)
   useEffect(() => {
-    if (!navigationState?.key) return;
+    let cancelled = false;
+    authService
+      .getStoredUser()
+      .then((stored) => {
+        if (!cancelled && stored) setUser(stored);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Giriş durumuna göre yönlendir: giriş yoksa login, giriş varsa auth ekranındaysa dashboard
+  useEffect(() => {
+    if (!navigationState?.key || isLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const hasNoSegment = !segments[0];
+    const inTabs = segments[0] === '(tabs)';
+
+    if (user == null) {
+      if (!inAuthGroup && !hasNoSegment) {
+        router.replace('/(auth)/login');
+      } else if (hasNoSegment) {
+        router.replace('/(auth)/login');
+      }
+      return;
+    }
 
     if (inAuthGroup || hasNoSegment) {
-      const t = setTimeout(() => {
-        router.replace('/(tabs)/dashboard');
-      }, 0);
-      return () => clearTimeout(t);
+      router.replace('/(tabs)/dashboard');
     }
-  }, [segments, navigationState?.key]);
+  }, [user, segments, navigationState?.key, isLoading]);
 
   const login = async (email: string, password: string) => {
-    try {
-      const response = await authService.login(email, password);
-      console.log('Login response user:', response.user);
-      console.log('Login response accessToken:', response.accessToken);
-      console.log('Login response refreshToken:', response.refreshToken);
-      setUser(response.user);
-      router.replace('/(tabs)/dashboard');
-    } catch (error) {
-      throw error;
-    }
+    const response = await authService.login(email, password);
+    setUser(response.user);
+    router.replace('/(tabs)/dashboard');
   };
 
   const logout = async () => {
     try {
       await authService.logout();
-    } catch (error) {
-      console.log('Logout error:', error);
-    }
-    setUser(GUEST_USER);
-    router.replace('/(tabs)/dashboard');
+    } catch (_) {}
+    setUser(null);
+    router.replace('/(auth)/login');
   };
 
   return (

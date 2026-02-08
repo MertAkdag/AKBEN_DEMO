@@ -44,21 +44,22 @@ export const FilterSegment = ({ options, selected, onSelect }: Props) => {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 14,
     flexDirection: 'row',
   },
   pill: {
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    marginRight: 10,
     borderWidth: 1,
   },
   pillActive: {
-    backgroundColor: Colors.primary,    
+    backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
   pillInactive: {
-    backgroundColor: Colors.card, 
+    backgroundColor: Colors.card,
     borderColor: Colors.border,
   },
   text: {
@@ -69,5 +70,5 @@ const styles = StyleSheet.create({
   },
   textInactive: {
     color: Colors.subtext,
-  }
+  },
 });

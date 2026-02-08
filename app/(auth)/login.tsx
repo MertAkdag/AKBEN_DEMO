@@ -65,17 +65,20 @@ export default function LoginScreen() {
               <Image
                 source={require('../../assets/images/akbenlogo.png')}
                 style={{
-                  width: calculateWidth(100),
-                  height: calculateWidth(64),
+                  width: Math.min(calculateWidth(140), 180),
+                  height: Math.min(calculateWidth(56), 72),
                 }}
+                resizeMode="contain"
               />
             </View>
-            <Text style={[styles.title, { fontSize: calculateFontSize(24) }]}>
+            <Text style={[styles.title, { fontSize: calculateFontSize(26) }]}>
               Akben
             </Text>
+            <Text style={styles.tagline}>Kuyumcu yönetim paneli</Text>
           </View>
 
           <View style={styles.formCard}>
+            <View style={styles.formCardAccent} />
             <CustomInput
               label="Email"
               placeholder="ornek@firma.com"
@@ -112,6 +115,7 @@ export default function LoginScreen() {
               variant="primary"
               isLoading={isLoading}
               onPress={handleLogin}
+              fullWidth
               style={{ marginTop: calculateHeight(4) }}
             />
           </View>
@@ -134,36 +138,45 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 28,
   },
   logoWrapper: {
-    width: 1530,
-    height: 145,
-    borderRadius: 24,
-    marginTop: -120,
+    maxWidth: 200,
     alignItems: 'center',
-  
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   title: {
     color: Colors.text,
     fontWeight: '700',
   },
-  subtitle: {
+  tagline: {
     color: Colors.subtext,
     marginTop: 4,
-    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '500',
   },
   formCard: {
     width: '100%',
     backgroundColor: Colors.card,
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    paddingLeft: 28,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  formCardAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: Colors.primary,
+    borderTopLeftRadius: 20,
+    borderBottomLeftRadius: 20,
   },
   errorText: {
     color: Colors.error,

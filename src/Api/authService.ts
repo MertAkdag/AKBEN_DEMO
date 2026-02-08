@@ -1,4 +1,3 @@
-import { axiosClient } from './axiosClient';
 import * as SecureStore from 'expo-secure-store';
 
 export interface User {
@@ -14,52 +13,62 @@ export interface LoginResponse {
   refreshToken: string;
 }
 
+/** Demo modu: API çağrılmaz, giriş/çıkış tamamen yerel. */
+const DEMO_MODE = true;
+
 export const authService = {
   async login(email: string, password: string): Promise<LoginResponse> {
+    if (DEMO_MODE) {
+      const name = email.split('@')[0] || 'Kullanıcı';
+      const user: User = {
+        id: `demo-${Date.now()}`,
+        email,
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        role: 'ADMIN',
+      };
+      await SecureStore.setItemAsync('user', JSON.stringify(user));
+      return {
+        user,
+        accessToken: 'demo-token',
+        refreshToken: 'demo-refresh',
+      };
+    }
+
+    const { axiosClient } = await import('./axiosClient');
     const response = await axiosClient.post<{ success: boolean; data: LoginResponse }>('/auth/Login', {
       email,
       password,
     });
-    
-    // API { success: true, data: { user, accessToken, refreshToken } } formatında dönüyor
     const { accessToken, refreshToken, user } = response.data.data;
-    console.log('🔑 Access Token:', accessToken);
-    console.log('🔄 Refresh Token:', refreshToken);
-    if (accessToken) {
-      await SecureStore.setItemAsync('accessToken', accessToken);
-    }
-    
-    if (refreshToken) {
-      await SecureStore.setItemAsync('refreshToken', refreshToken);
-    }
-
-    if (user) {
-      await SecureStore.setItemAsync('user', JSON.stringify(user));
-    }
-
+    if (accessToken) await SecureStore.setItemAsync('accessToken', accessToken);
+    if (refreshToken) await SecureStore.setItemAsync('refreshToken', refreshToken);
+    if (user) await SecureStore.setItemAsync('user', JSON.stringify(user));
     return response.data.data;
   },
 
   async logout() {
-    try {
-      await axiosClient.post('/auth/Logout');
-    } catch (error) {
-      console.log('Backend logout error', error);
-    } finally {
-      // Local temizlik
+    if (DEMO_MODE) {
       await SecureStore.deleteItemAsync('accessToken');
       await SecureStore.deleteItemAsync('refreshToken');
       await SecureStore.deleteItemAsync('user');
+      return;
     }
+    try {
+      const { axiosClient } = await import('./axiosClient');
+      await axiosClient.post('/auth/Logout');
+    } catch (_) {}
+    await SecureStore.deleteItemAsync('accessToken');
+    await SecureStore.deleteItemAsync('refreshToken');
+    await SecureStore.deleteItemAsync('user');
   },
 
   async getStoredUser(): Promise<User | null> {
     const userStr = await SecureStore.getItemAsync('user');
     return userStr ? JSON.parse(userStr) : null;
   },
-  
+
   async getToken(): Promise<string | null> {
     return await SecureStore.getItemAsync('accessToken');
-  }
+  },
 };
 
