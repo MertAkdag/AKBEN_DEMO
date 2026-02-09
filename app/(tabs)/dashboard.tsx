@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,9 @@ import {
   RefreshControl,
   Dimensions,
   Platform,
-  Pressable,
+  FlatList,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView, Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -16,7 +18,6 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  FadeIn,
   FadeInDown,
 } from 'react-native-reanimated';
 import Svg, {
@@ -32,7 +33,7 @@ import { ScreenHeader } from '../../src/Shared/Header';
 import { StatCardSkeleton, ChartSkeleton } from '../../src/Components/Ui/Skeleton';
 import { ErrorState } from '../../src/Components/Ui/ErrorState';
 import { dashboardService, DashboardSummary } from '../../src/Api/dashboardService';
-import { goldPriceService } from '../../src/Api/goldPriceService';
+import { goldPriceService, FinanceItem } from '../../src/Api/goldPriceService';
 import { useResponsive } from '../../src/Hooks/UseResponsive';
 import { useTheme } from '../../src/Context/ThemeContext';
 import { lightImpact } from '../../src/Utils/haptics';
@@ -55,6 +56,10 @@ const GH = CHART_H - CP.top - CP.bottom;
 const TAB_H = 100;
 const SPRING = { damping: 20, stiffness: 180, mass: 0.7 };
 
+/* Finans ticker boyutları */
+const TICKER_GAP = 10;
+const TICKER_CARD_W = SW - PAD * 2;
+
 /* ─── Glass Card wrapper ─── */
 function GlassCard({ children, style, delay = 0, colors, isDark }: {
   children: React.ReactNode; style?: any; delay?: number; colors: ThemeColors; isDark: boolean;
@@ -74,6 +79,71 @@ function GlassCard({ children, style, delay = 0, colors, isDark }: {
     ]}>
       {children}
     </Animated.View>
+  );
+}
+
+/* ─── Finans Ticker Card ─── */
+function FinanceTickerCard({ item, colors, isDark, isFallback }: {
+  item: FinanceItem; colors: ThemeColors; isDark: boolean; isFallback: boolean;
+}) {
+  const isUp = item.changeNum > 0;
+  const isDown = item.changeNum < 0;
+  const changeColor = isUp ? colors.success : isDown ? colors.error : colors.subtext;
+  const changeIcon = isUp ? 'trending-up' : isDown ? 'trending-down' : 'remove-outline';
+  const liveColor = isFallback ? colors.warning : colors.success;
+
+  return (
+    <View style={[
+      styles.tickerCard,
+      {
+        backgroundColor: colors.card,
+        borderColor: colors.cardBorder,
+        width: TICKER_CARD_W,
+        ...Platform.select({
+          ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0.18 : 0.06, shadowRadius: 12 },
+          android: { elevation: 6 },
+        }),
+      },
+    ]}>
+      {/* Üst satır: ikon + isim + canlı badge */}
+      <View style={styles.tickerTop}>
+        <View style={[styles.tickerIcon, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '20' }]}>
+          <Ionicons name={item.icon as any} size={20} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.tickerLabel, { color: colors.text }]}>{item.label}</Text>
+          <Text style={[styles.tickerSub, { color: colors.subtext }]}>{item.subtitle}</Text>
+        </View>
+        <View style={[styles.liveBadge, { backgroundColor: liveColor + '15' }]}>
+          <View style={[styles.liveDot, { backgroundColor: liveColor }]} />
+          <Text style={[styles.liveText, { color: liveColor }]}>
+            {isFallback ? 'Çevrimdışı' : 'Canlı'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Alt satır: fiyat + değişim */}
+      <View style={styles.tickerBottom}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.tickerPrice, { color: colors.text }]}>
+            {item.sell > 0
+              ? `${item.unit}${item.sell.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : '—'}
+          </Text>
+          {item.buy > 0 && (
+            <Text style={[styles.tickerBuy, { color: colors.subtext }]}>
+              Alış: {item.unit}{item.buy.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Text>
+          )}
+        </View>
+        {!isFallback && (
+          <View style={[styles.changePill, { backgroundColor: changeColor + '12' }]}>
+            <Ionicons name={changeIcon as any} size={14} color={changeColor} />
+            <Text style={[styles.changeText, { color: changeColor }]}>{item.change}</Text>
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -104,22 +174,23 @@ export default function DashboardScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selIdx, setSelIdx] = useState(0);
-  const [goldPrice, setGoldPrice] = useState<number | null>(null);
-  const [goldFallback, setGoldFallback] = useState(false);
+  const [financeItems, setFinanceItems] = useState<FinanceItem[]>([]);
+  const [financeFallback, setFinanceFallback] = useState(false);
+  const [tickerPage, setTickerPage] = useState(0);
 
   const fetchData = useCallback(async () => {
     try { setError(null); setData(await dashboardService.getSummary()); }
     catch (e: any) { setError(e.message || 'Veriler yüklenemedi'); }
     finally { setIsLoading(false); setRefreshing(false); }
   }, []);
-  const fetchGold = useCallback(async () => {
-    const r = await goldPriceService.getGramGoldSellPrice();
-    setGoldPrice(r.price); setGoldFallback(r.isFallback);
+  const fetchFinance = useCallback(async () => {
+    const r = await goldPriceService.getFinanceData();
+    setFinanceItems(r.items); setFinanceFallback(r.isFallback);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { fetchGold(); }, [fetchGold]);
-  const onRefresh = useCallback(() => { setRefreshing(true); fetchData(); fetchGold(); }, [fetchData, fetchGold]);
+  useEffect(() => { fetchFinance(); }, [fetchFinance]);
+  const onRefresh = useCallback(() => { setRefreshing(true); fetchData(); fetchFinance(); }, [fetchData, fetchFinance]);
 
   const stats = data ? [
     { label: 'Satış', val: data.totalSalesGram, icon: 'arrow-up-circle', color: colors.success },
@@ -268,34 +339,44 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}>
         <ScreenHeader title="Özet" subtitle={today} />
 
-        {/* Gold */}
-        <GlassCard style={{ marginBottom: 16 }} delay={80} colors={colors} isDark={isDark}>
-          <View style={styles.goldRow}>
-            <View style={[styles.goldIcon, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '20' }]}>
-              <Ionicons name="diamond" size={18} color={colors.primary} />
+        {/* Finans Ticker */}
+        {financeItems.length > 0 && (
+          <Animated.View entering={FadeInDown.duration(500).delay(80).springify()} style={{ marginBottom: 16 }}>
+            <FlatList
+              data={financeItems}
+              keyExtractor={(item) => item.key}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={TICKER_CARD_W + TICKER_GAP}
+              decelerationRate="fast"
+              contentContainerStyle={{ gap: TICKER_GAP }}
+              onScroll={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
+                const page = Math.round(e.nativeEvent.contentOffset.x / (TICKER_CARD_W + TICKER_GAP));
+                if (page !== tickerPage) { setTickerPage(page); lightImpact(); }
+              }}
+              scrollEventThrottle={16}
+              renderItem={({ item }) => (
+                <FinanceTickerCard item={item} colors={colors} isDark={isDark} isFallback={financeFallback} />
+              )}
+            />
+            {/* Sayfa göstergesi */}
+            <View style={styles.dotsRow}>
+              {financeItems.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    {
+                      backgroundColor: i === tickerPage ? colors.primary : colors.subtext + '30',
+                      width: i === tickerPage ? 18 : 6,
+                    },
+                  ]}
+                />
+              ))}
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.goldLbl, { color: colors.subtext }]}>Has Altın (gr)</Text>
-              <Text style={[styles.goldVal, { color: colors.text }]}>
-                {goldPrice != null
-                  ? `₺${goldPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                  : '—'}
-              </Text>
-            </View>
-            <View style={[styles.goldBadge, {
-              backgroundColor: goldFallback ? colors.warning + '18' : colors.success + '15',
-            }]}>
-              <View style={[styles.liveDot, {
-                backgroundColor: goldFallback ? colors.warning : colors.success,
-              }]} />
-              <Text style={[styles.goldBadgeText, {
-                color: goldFallback ? colors.warning : colors.success,
-              }]}>
-                {goldFallback ? 'Canlı değil' : 'Canlı'}
-              </Text>
-            </View>
-          </View>
-        </GlassCard>
+          </Animated.View>
+        )}
 
         {/* Stats */}
         <View style={styles.statsGrid}>
@@ -322,20 +403,38 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
-  goldRow: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
-  goldIcon: {
-    width: 42, height: 42, borderRadius: 14,
+  /* Finans ticker */
+  tickerCard: {
+    borderRadius: 20, overflow: 'hidden',
+    borderWidth: 1, padding: 16, gap: 14,
+  },
+  tickerTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  tickerIcon: {
+    width: 44, height: 44, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1,
   },
-  goldLbl: { fontSize: 12, fontWeight: '500', marginBottom: 2 },
-  goldVal: { fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
-  goldBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+  tickerLabel: { fontSize: 16, fontWeight: '700' },
+  tickerSub: { fontSize: 12, fontWeight: '500', marginTop: 1 },
+  liveBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
   },
   liveDot: { width: 6, height: 6, borderRadius: 3 },
-  goldBadgeText: { fontSize: 11, fontWeight: '600' },
+  liveText: { fontSize: 11, fontWeight: '600' },
+  tickerBottom: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
+  tickerPrice: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
+  tickerBuy: { fontSize: 12, fontWeight: '500', marginTop: 2 },
+  changePill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12,
+  },
+  changeText: { fontSize: 13, fontWeight: '700' },
+  dotsRow: {
+    flexDirection: 'row', justifyContent: 'center',
+    alignItems: 'center', gap: 5, marginTop: 10,
+  },
+  dot: { height: 6, borderRadius: 3 },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
   statCard: {

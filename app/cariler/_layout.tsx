@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { useTheme } from '../../src/Context/ThemeContext';
 
-export default function OrdersLayout() {
+export default function CarilerLayout() {
   const { colors } = useTheme();
 
   return (

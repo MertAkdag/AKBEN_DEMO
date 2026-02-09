@@ -48,8 +48,8 @@ interface TabDef {
 const TABS: TabDef[] = [
   { name: 'dashboard', title: 'Özet', icon: 'grid-outline', iconFocused: 'grid' },
   { name: 'catalog', title: 'Katalog', icon: 'diamond-outline', iconFocused: 'diamond' },
-  { name: 'machines', title: 'İşlemler', icon: 'swap-horizontal-outline', iconFocused: 'swap-horizontal' },
-  { name: 'orders', title: 'Cariler', icon: 'document-text-outline', iconFocused: 'document-text' },
+  { name: 'transactions', title: 'İşlemler', icon: 'swap-horizontal-outline', iconFocused: 'swap-horizontal' },
+  { name: 'cariler', title: 'Cariler', icon: 'people-outline', iconFocused: 'people' },
   { name: 'profile', title: 'Profil', icon: 'person-outline', iconFocused: 'person' },
 ];
 

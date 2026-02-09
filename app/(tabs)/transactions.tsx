@@ -77,7 +77,7 @@ export default function TransactionsScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
-          <TransactionCard transaction={item} onPress={() => router.push(`/machines/${item.id}`)} index={index} />
+          <TransactionCard transaction={item} onPress={() => router.push(`/transactions/${item.id}`)} index={index} />
         )}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}

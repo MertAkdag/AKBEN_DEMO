@@ -29,8 +29,8 @@ export default function CarilerScreen() {
   const { cariler, isLoading, isError, refetch, isRefetching } = useFilteredCariler(selectedFilter, searchQuery);
   const total = allCariler?.length ?? 0;
 
-  const handleCariPress = useCallback((cari: Cari) => { router.push(`/orders/${cari.id}`); }, [router]);
-  const handleAddCari = useCallback(() => { router.push('/orders/add'); }, [router]);
+  const handleCariPress = useCallback((cari: Cari) => { router.push(`/cariler/${cari.id}`); }, [router]);
+  const handleAddCari = useCallback(() => { router.push('/cariler/add'); }, [router]);
 
   if (isError && !isRefetching) {
     return (

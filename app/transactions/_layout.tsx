@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { useTheme } from '../../src/Context/ThemeContext';
 
-export default function MachinesLayout() {
+export default function TransactionsLayout() {
   const { colors } = useTheme();
 
   return (

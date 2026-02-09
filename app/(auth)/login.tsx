@@ -86,6 +86,11 @@ export default function LoginScreen() {
               style={{ marginTop: 8 }}
             />
           </View>
+
+          {/* Gizlilik notu */}
+          <Text style={[s.privacy, { color: colors.subtext + '80' }]}>
+            Akben 2026 .
+          </Text>
         </View>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
@@ -105,4 +110,5 @@ const s = StyleSheet.create({
     borderWidth: 1,
   },
   error: { fontSize: 13, marginBottom: 8 },
+  privacy: { fontSize: 12, fontWeight: '500', marginTop: 24, textAlign: 'center', letterSpacing: 0.1 },
 });

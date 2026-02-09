@@ -33,10 +33,10 @@ function InnerLayout() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="machines" options={{ headerShown: false }} />
+        <Stack.Screen name="transactions" options={{ headerShown: false }} />
         <Stack.Screen name="catalog" options={{ headerShown: false }} />
         <Stack.Screen
-          name="orders"
+          name="cariler"
           options={{
             headerShown: false,
             presentation: 'transparentModal',

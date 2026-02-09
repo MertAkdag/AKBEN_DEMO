@@ -71,7 +71,7 @@ export default function YeniCariEkleScreen() {
         notes: notes.trim() || undefined,
       });
       await queryClient.invalidateQueries({ queryKey: cariKeys.lists() });
-      router.replace(`/orders/${data.id}`);
+      router.replace(`/cariler/${data.id}`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Cari eklenirken bir hata oluştu.';
       setError(msg);

@@ -1,157 +1,279 @@
 /**
- * Has altın anlık fiyatı.
- * Önce Harem Altın, olmazsa Kapalı Çarşı API yedek.
+ * Canlı finans verileri: Has Altın, USD, EUR
+ *
+ * Kaynaklar:
+ *   • Altın  → Harem Altın (RapidAPI) birincil, Truncgil yedek
+ *   • Döviz  → Truncgil Finans API
+ *   • Fallback → sabit değerler
  */
 
-const HAREM_URL = 'https://canlipiyasalar.haremaltin.com';
-const KAPALI_CARSI_URL = 'https://kapalicarsi.apiluna.org/';
+/* ─── Endpoint'ler ─── */
+const HAREM_URL =
+  'https://harem-altin-live-gold-price-data.p.rapidapi.com/harem_altin/prices/23b4c2fb31a242d1eebc0df9b9b65e5e';
+const HAREM_HEADERS: Record<string, string> = {
+  'x-rapidapi-key': '33497422c6msh3921ffcbf524722p179d0djsn8b9fbcdb7127',
+  'x-rapidapi-host': 'harem-altin-live-gold-price-data.p.rapidapi.com',
+};
+const TRUNCGIL_URL = 'https://finans.truncgil.com/today.json';
 
-/** Harem 403 / Kapalı Çarşı network failed olduğunda gösterilecek son bilinen fiyat (TL/gr) */
-const FALLBACK_GRAM_PRICE = 6850;
+const DEBUG = __DEV__;
 
-const GOLD_DEBUG = true; // false yaparak logları kapat
+/* ─── Tipler ─── */
+export interface FinanceItem {
+  key: string;
+  label: string;
+  subtitle: string;
+  icon: string;
+  buy: number;
+  sell: number;
+  change: string;
+  changeNum: number;
+  unit: string;
+  isFallback: boolean;
+}
+
+export type FinanceData = {
+  items: FinanceItem[];
+  isFallback: boolean;
+  source: string;
+};
 
 export type GoldPriceResult = { price: number; isFallback: boolean };
 
+/* ════════════════════════════════════════════
+   Yardımcılar
+   ════════════════════════════════════════════ */
 function log(...args: unknown[]) {
-  if (GOLD_DEBUG) console.log('[Gold]', ...args);
+  if (DEBUG) console.log('[Finance]', ...args);
 }
 
-/** Türk sayı formatını parse eder: 6.852,95 veya 6.852,950 -> 6852.95 */
-function parseTurkishNumber(str: string): number {
-  const s = str.replace(/\s/g, '').trim();
-  const commaIndex = s.indexOf(',');
-  if (commaIndex === -1) {
-    const intPart = s.replace(/\./g, '');
-    return parseInt(intPart, 10) || NaN;
-  }
-  const intPart = s.slice(0, commaIndex).replace(/\./g, '');
-  const decPart = s.slice(commaIndex + 1);
-  const whole = parseInt(intPart, 10);
-  const dec = parseInt(decPart, 10) / Math.pow(10, decPart.length);
-  return whole + dec;
+/** Türkçe karakterleri ASCII'ye normalize et */
+function normalizeTR(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/ı/g, 'i')
+    .replace(/ö/g, 'o')
+    .replace(/ü/g, 'u')
+    .replace(/ş/g, 's')
+    .replace(/ç/g, 'c')
+    .replace(/ğ/g, 'g')
+    .replace(/İ/g, 'i')
+    .replace(/[\s_\-/]/g, '');
 }
 
-/** Harem sayfası HTML'inden has altın satış fiyatını çıkarır */
-function parseHaremHtml(html: string): number | null {
-  // 1) HASALTIN6.852,950 veya HAS ALTIN 6.852,95 (sayfa başında sık görülüyor)
-  let m = html.match(/HAS\s*ALTIN\s*(\d[\d.,]+)/i);
-  if (m) {
-    const n = parseTurkishNumber(m[1]);
-    if (Number.isFinite(n)) {
-      log('parseHaremHtml: regex 1 (HASALTIN+sayı) eşleşti:', m[1], '->', n);
-      return n;
-    }
+/** "6.985,39" → 6985.39 */
+function parseTR(str: string): number {
+  const s = str.replace(/\s/g, '').replace(/[₺$€]/g, '');
+  if (s.includes(',')) {
+    return parseFloat(s.replace(/\./g, '').replace(',', '.'));
   }
-  // 2) Tablo: HAS ALTIN ... |alış|satış|
-  m = html.match(/HAS\s*ALTIN[\s\S]*?\|(\d[\d.,]+)\|(\d[\d.,]+)/i);
-  if (m) {
-    const n = parseTurkishNumber(m[2]);
-    if (Number.isFinite(n)) {
-      log('parseHaremHtml: regex 2 (tablo) eşleşti, satış:', m[2], '->', n);
-      return n;
-    }
-  }
-  // 3) Herhangi bir yerde HAS ve ALTIN sonrası iki sayı (alış, satış)
-  m = html.match(/HAS[\s\S]{0,100}?ALTIN[\s\S]{0,400}?(\d{1,3}(?:\.\d{3})*,\d{2,3})[\s\S]{0,100}?(\d{1,3}(?:\.\d{3})*,\d{2,3})/i);
-  if (m) {
-    const n = parseTurkishNumber(m[2]);
-    if (Number.isFinite(n)) {
-      log('parseHaremHtml: regex 3 eşleşti, satış:', m[2], '->', n);
-      return n;
-    }
-  }
-  log('parseHaremHtml: hiçbir regex eşleşmedi. html uzunluğu:', html.length, 'ilk 500 karakter:', html.slice(0, 500));
-  return null;
+  return parseFloat(s);
 }
 
-/** Kapalı Çarşı API'den gram altın satış (TL) */
-async function fetchKapaliCarsi(): Promise<number | null> {
-  try {
-    log('Kapalı Çarşı: istek atılıyor...');
-    const res = await fetch(KAPALI_CARSI_URL);
-    log('Kapalı Çarşı: status', res.status, 'ok=', res.ok);
-    if (!res.ok) {
-      log('Kapalı Çarşı: res.ok false, body önizleme:', (await res.text()).slice(0, 200));
-      return null;
-    }
-    const data: { code: string; satis: string }[] = await res.json();
-    const altin = data?.find((x) => x.code === 'ALTIN');
-    if (!altin?.satis) {
-      log('Kapalı Çarşı: ALTIN bulunamadı, codes:', data?.map((d) => d.code).slice(0, 5));
-      return null;
-    }
-    const num = parseFloat(altin.satis.replace(',', '.'));
-    if (Number.isFinite(num)) {
-      log('Kapalı Çarşı: fiyat', altin.satis, '->', num);
-      return num;
-    }
-    return null;
-  } catch (e) {
-    log('Kapalı Çarşı: hata', e);
-    return null;
-  }
+function safeNum(val: any): number {
+  if (typeof val === 'number') return val;
+  if (typeof val === 'string') return parseTR(val);
+  return 0;
 }
 
-function fetchWithTimeout(url: string, opts: RequestInit, ms: number): Promise<Response> {
+function fmtChange(num: number): string {
+  const sign = num > 0 ? '+' : '';
+  return `%${sign}${num.toFixed(2).replace('.', ',')}`;
+}
+
+function fetchWithTimeout(url: string, opts?: RequestInit, ms = 8000): Promise<Response> {
   return Promise.race([
     fetch(url, opts),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('timeout')), ms)
-    ),
+    new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), ms)),
   ]);
 }
 
+/** Dizi içinde key alanına göre Türkçe-duyarlı arama */
+function findByKey(list: any[], names: string[]): any | null {
+  const norms = names.map(normalizeTR);
+  for (const entry of list) {
+    const k = normalizeTR(String(entry?.key ?? ''));
+    if (norms.includes(k)) return entry;
+  }
+  return null;
+}
+
+/* ─── Fallback ─── */
+const FALLBACK_ITEMS: FinanceItem[] = [
+  { key: 'gold', label: 'Has Altın', subtitle: 'Gram fiyatı', icon: 'diamond', buy: 0, sell: 0, change: '—', changeNum: 0, unit: '₺', isFallback: true },
+  { key: 'gold', label: '22 Ayar', subtitle: '22 Ayar', icon: 'diamond', buy: 0, sell: 0, change: '—', changeNum: 0, unit: '₺', isFallback: true },
+  { key: 'eur', label: 'Euro', subtitle: 'EUR / TRY', icon: 'logo-euro', buy: 0, sell: 0, change: '—', changeNum: 0, unit: '₺', isFallback: true },
+];
+
+/* ════════════════════════════════════════════
+   Harem Altın – RapidAPI (sadece altın)
+   ────────────────────────────────────────────
+   Response: 27 kayıtlık dizi
+   { key, buy, sell, percent, arrow, last_update }
+   Key'ler: "Has Altın", "GRAM ALTIN", "ONS", …
+   ════════════════════════════════════════════ */
+async function fetchHaremGold(): Promise<FinanceItem | null> {
+  try {
+    log('Harem: istek atılıyor…');
+    const res = await fetchWithTimeout(
+      HAREM_URL,
+      { method: 'GET', headers: HAREM_HEADERS },
+      10000,
+    );
+    if (!res.ok) { log('Harem: status', res.status); return null; }
+
+    const raw = await res.json();
+    const list: any[] = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.data)
+        ? raw.data
+        : typeof raw === 'object'
+          ? Object.values(raw)
+          : [];
+
+    if (!list.length) { log('Harem: boş liste'); return null; }
+
+    const entry = findByKey(list, ['Has Altın', 'Has Altin', 'HASALTIN', 'HAS ALTIN']);
+    if (!entry) {
+      log('Harem: Has Altın bulunamadı. Keys:', list.map((e: any) => e?.key).join(', '));
+      return null;
+    }
+
+    const pct = parseFloat(String(entry.percent ?? '0').replace(',', '.')) || 0;
+    const changeNum = entry.arrow === 'down' ? -Math.abs(pct) : pct;
+
+    const item: FinanceItem = {
+      key: 'gold',
+      label: 'Has Altın',
+      subtitle: 'Gram fiyatı',
+      icon: 'diamond',
+      buy: safeNum(entry.buy),
+      sell: safeNum(entry.sell),
+      change: fmtChange(changeNum),
+      changeNum,
+      unit: '₺',
+      isFallback: false,
+    };
+
+    log('Harem ✓ Has Altın satış =', item.sell, 'değişim =', item.change);
+    return item;
+  } catch (e) {
+    log('Harem: hata', e);
+    return null;
+  }
+}
+
+/* ════════════════════════════════════════════
+   Truncgil – Altın + Döviz (yedek / tamamlayıcı)
+   ════════════════════════════════════════════ */
+interface TruncgilResult {
+  gold: FinanceItem;
+  usd: FinanceItem;
+  eur: FinanceItem;
+}
+
+async function fetchTruncgil(): Promise<TruncgilResult | null> {
+  try {
+    log('Truncgil: istek atılıyor…');
+    const res = await fetchWithTimeout(TRUNCGIL_URL);
+    if (!res.ok) { log('Truncgil: status', res.status); return null; }
+    const data = await res.json();
+
+    const gold = data?.['gram-has-altin'];
+    const usd = data?.['USD'];
+    const eur = data?.['EUR'];
+
+    if (!gold?.Satış || !usd?.Satış || !eur?.Satış) {
+      log('Truncgil: eksik veri');
+      return null;
+    }
+
+    const parseChg = (s: string) =>
+      parseFloat((s ?? '0').replace('%', '').replace(',', '.')) || 0;
+
+    return {
+      gold: {
+        key: 'gold', label: 'Has Altın', subtitle: 'Gram fiyatı', icon: 'diamond',
+        buy: parseTR(gold.Alış), sell: parseTR(gold.Satış),
+        change: gold.Değişim ?? '—', changeNum: parseChg(gold.Değişim),
+        unit: '₺', isFallback: false,
+      },
+      usd: {
+        key: 'usd', label: 'Dolar', subtitle: 'USD / TRY', icon: 'logo-usd',
+        buy: parseTR(usd.Alış), sell: parseTR(usd.Satış),
+        change: usd.Değişim ?? '—', changeNum: parseChg(usd.Değişim),
+        unit: '₺', isFallback: false,
+      },
+      eur: {
+        key: 'eur', label: 'Euro', subtitle: 'EUR / TRY', icon: 'logo-euro',
+        buy: parseTR(eur.Alış), sell: parseTR(eur.Satış),
+        change: eur.Değişim ?? '—', changeNum: parseChg(eur.Değişim),
+        unit: '₺', isFallback: false,
+      },
+    };
+  } catch (e) {
+    log('Truncgil: hata', e);
+    return null;
+  }
+}
+
+/* ════════════════════════════════════════════
+   Public API
+   ════════════════════════════════════════════ */
 export const goldPriceService = {
   /**
-   * Has altın satış fiyatı (TL/gr).
-   * Önce Harem, olmazsa Kapalı Çarşı; ikisi de başarısızsa FALLBACK_GRAM_PRICE (isFallback: true).
+   * Tüm finans verileri.
+   * Altın: önce Harem, olmazsa Truncgil
+   * Döviz: Truncgil (Harem'de döviz yok)
    */
+  async getFinanceData(): Promise<FinanceData> {
+    log('getFinanceData başladı');
+
+    // Paralel çağrı: Harem (sadece altın) + Truncgil (altın + döviz)
+    const [haremGold, truncgil] = await Promise.all([
+      fetchHaremGold(),
+      fetchTruncgil(),
+    ]);
+
+    const items: FinanceItem[] = [];
+    let source = 'fallback';
+
+    // Altın: Harem öncelikli, yoksa Truncgil
+    if (haremGold) {
+      items.push(haremGold);
+      source = 'harem';
+    } else if (truncgil?.gold) {
+      items.push(truncgil.gold);
+      source = 'truncgil';
+    } else {
+      items.push(FALLBACK_ITEMS[0]);
+    }
+
+    // Döviz: Truncgil
+    if (truncgil?.usd) {
+      items.push(truncgil.usd);
+    } else {
+      items.push(FALLBACK_ITEMS[1]);
+    }
+
+    if (truncgil?.eur) {
+      items.push(truncgil.eur);
+    } else {
+      items.push(FALLBACK_ITEMS[2]);
+    }
+
+    const isFallback = items.every(i => i.isFallback);
+    log('Sonuç:', source, '|', items.map(i => `${i.label}=${i.sell || '—'}`).join(', '));
+
+    return { items, isFallback, source };
+  },
+
   async getGramGoldSellPrice(): Promise<GoldPriceResult> {
-    log('getGramGoldSellPrice başladı');
-
-    // 1) Harem Altın (8 sn timeout)
-    try {
-      log('Harem: istek atılıyor...', HAREM_URL);
-      const res = await fetchWithTimeout(
-        HAREM_URL,
-        {
-          method: 'GET',
-          headers: {
-            Accept: 'text/html,application/xhtml+xml',
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; App) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0 Mobile Safari/537.36',
-          },
-        },
-        8000
-      );
-      log('Harem: status', res.status, 'ok=', res.ok);
-      if (res.ok) {
-        const html = await res.text();
-        log('Harem: html uzunluğu', html.length);
-        const price = parseHaremHtml(html);
-        if (price != null) {
-          log('Harem: fiyat döndü', price);
-          return { price, isFallback: false };
-        }
-        log('Harem: parse sonucu null');
-      } else {
-        const bodyPreview = await res.text();
-        log('Harem: res.ok false, body önizleme:', bodyPreview.slice(0, 300));
-      }
-    } catch (e) {
-      log('Harem: hata veya timeout', e);
+    const data = await this.getFinanceData();
+    const gold = data.items.find(i => i.key === 'gold');
+    if (gold && !gold.isFallback) {
+      return { price: gold.sell, isFallback: false };
     }
-
-    // 2) Yedek: Kapalı Çarşı API
-    log('Yedek: Kapalı Çarşı deneniyor...');
-    const kapali = await fetchKapaliCarsi();
-    if (kapali != null) {
-      log('Sonuç: Kapalı Çarşı fiyat=', kapali);
-      return { price: kapali, isFallback: false };
-    }
-
-    // 3) İkisi de başarısız: son bilinen fiyat (ağ/403 nedeniyle canlı veri yok)
-    log('Sonuç: her iki kaynak başarısız, fallback fiyat kullanılıyor:', FALLBACK_GRAM_PRICE);
-    return { price: FALLBACK_GRAM_PRICE, isFallback: true };
+    return { price: 7000, isFallback: true };
   },
 };
