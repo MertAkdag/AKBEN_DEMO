@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Platform, Switch, Pressable } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
 import { Spacing } from '../../src/Constants/Spacing';
 import { Button } from '../../src/Components/Ui/Button';
 import { ScreenHeader } from '../../src/Shared/Header';
@@ -174,6 +175,7 @@ function SettingRow({ icon, label, value, onPress, trailing, last, colors }: {
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { colors, isDark, toggleTheme } = useTheme();
+  const router = useRouter();
   const role = user?.role === 'ADMIN' ? 'Yönetici' : user?.role === 'TECHNICIAN' ? 'Teknisyen' : (user?.role || '-');
 
   const cardStyle = useMemo(() => ({
@@ -218,8 +220,23 @@ export default function ProfileScreen() {
           <InfoRow icon="shield-checkmark" label="Rol" value={role} last colors={colors} />
         </Animated.View>
 
+        {/* Yönetim kartı */}
+        <Animated.View entering={FadeInDown.duration(500).delay(120).springify()}>
+          <Text style={[s.sectionTitle, { color: colors.subtext }]}>Yönetim</Text>
+          <View style={[s.card, cardStyle]}>
+            <SettingRow
+              icon="swap-horizontal"
+              label="İşlemler"
+              value="Satış, alış ve işçilik kayıtları"
+              colors={colors}
+              onPress={() => { lightImpact(); router.push('/transactions'); }}
+              last
+            />
+          </View>
+        </Animated.View>
+
         {/* Ayarlar kartı */}
-        <Animated.View entering={FadeInDown.duration(500).delay(160).springify()}>
+        <Animated.View entering={FadeInDown.duration(500).delay(200).springify()}>
           <Text style={[s.sectionTitle, { color: colors.subtext }]}>Ayarlar</Text>
           <View style={[s.card, cardStyle]}>
             <SettingRow
@@ -248,7 +265,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Çıkış butonu */}
-        <Animated.View entering={FadeInDown.duration(500).delay(240).springify()}>
+        <Animated.View entering={FadeInDown.duration(500).delay(280).springify()}>
           <Button
             title="Çıkış Yap"
             variant="danger"
@@ -259,7 +276,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Versiyon */}
-        <Animated.View entering={FadeInDown.duration(500).delay(300).springify()} style={s.versionWrap}>
+        <Animated.View entering={FadeInDown.duration(500).delay(340).springify()} style={s.versionWrap}>
           <Text style={[s.versionText, { color: colors.subtext + '60' }]}>Akben v1.0.0</Text>
         </Animated.View>
       </ScrollView>

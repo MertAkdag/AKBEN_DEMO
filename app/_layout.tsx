@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider } from "../src/Context/AuthContext";
 import { ThemeProvider, useTheme } from "../src/Context/ThemeContext";
+import { CartProvider } from "../src/Context/CartContext";
 import { ErrorBoundary } from "../src/Components/Ui/ErrorBoundary";
 
 const queryClient = new QueryClient({
@@ -55,7 +56,9 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
             <AuthProvider>
-              <InnerLayout />
+              <CartProvider>
+                <InnerLayout />
+              </CartProvider>
             </AuthProvider>
           </ThemeProvider>
         </QueryClientProvider>

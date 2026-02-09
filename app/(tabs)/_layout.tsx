@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Dimensions, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   withTiming,
+  withSequence,
   interpolate,
   Extrapolation,
   runOnJS,
@@ -15,6 +16,7 @@ import { BlurView } from 'expo-blur';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/Context/ThemeContext';
+import { useCart } from '../../src/Context/CartContext';
 import { lightImpact } from '../../src/Utils/haptics';
 
 /* ════════════════════════════════════════════
@@ -48,14 +50,45 @@ interface TabDef {
 const TABS: TabDef[] = [
   { name: 'dashboard', title: 'Özet', icon: 'grid-outline', iconFocused: 'grid' },
   { name: 'catalog', title: 'Katalog', icon: 'diamond-outline', iconFocused: 'diamond' },
-  { name: 'transactions', title: 'İşlemler', icon: 'swap-horizontal-outline', iconFocused: 'swap-horizontal' },
+  { name: 'cart', title: 'Sepetim', icon: 'cart-outline', iconFocused: 'cart' },
   { name: 'cariler', title: 'Cariler', icon: 'people-outline', iconFocused: 'people' },
   { name: 'profile', title: 'Profil', icon: 'person-outline', iconFocused: 'person' },
 ];
 
+/* ─── Badge bileşeni ─── */
+function TabBadge({ count, color, bgColor }: { count: number; color: string; bgColor: string }) {
+  const badgeScale = useSharedValue(0);
+
+  useEffect(() => {
+    if (count > 0) {
+      badgeScale.value = withSequence(
+        withSpring(1.25, { damping: 12, stiffness: 350 }),
+        withSpring(1, { damping: 14, stiffness: 200 }),
+      );
+    } else {
+      badgeScale.value = withTiming(0, { duration: 200 });
+    }
+  }, [count]);
+
+  const badgeAnim = useAnimatedStyle(() => ({
+    transform: [{ scale: badgeScale.value }],
+    opacity: interpolate(badgeScale.value, [0, 0.5, 1], [0, 0.8, 1], Extrapolation.CLAMP),
+  }));
+
+  if (count <= 0) return null;
+
+  return (
+    <Animated.View style={[styles.badge, { backgroundColor: bgColor }, badgeAnim]}>
+      <Text style={[styles.badgeText, { color }]}>
+        {count > 99 ? '99+' : count}
+      </Text>
+    </Animated.View>
+  );
+}
+
 /* ─── Tek tab öğesi ─── */
-function TabItem({ tab, focused, onPress, primaryColor, subtextColor }: {
-  tab: TabDef; focused: boolean; onPress: () => void; primaryColor: string; subtextColor: string;
+function TabItem({ tab, focused, onPress, primaryColor, subtextColor, badge }: {
+  tab: TabDef; focused: boolean; onPress: () => void; primaryColor: string; subtextColor: string; badge?: number;
 }) {
   const progress = useSharedValue(focused ? 1 : 0);
 
@@ -78,11 +111,16 @@ function TabItem({ tab, focused, onPress, primaryColor, subtextColor }: {
       style={styles.tabItem}
       hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
     >
-      <Ionicons
-        name={focused ? tab.iconFocused : tab.icon}
-        size={20}
-        color={focused ? primaryColor : subtextColor}
-      />
+      <View>
+        <Ionicons
+          name={focused ? tab.iconFocused : tab.icon}
+          size={20}
+          color={focused ? primaryColor : subtextColor}
+        />
+        {(badge ?? 0) > 0 && (
+          <TabBadge count={badge!} color="#FFF" bgColor={primaryColor} />
+        )}
+      </View>
       <Animated.Text
         style={[
           styles.tabLabel,
@@ -124,6 +162,7 @@ function indexFromPillX(px: number): number {
 function GlassTabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useTheme();
+  const { totalCount } = useCart();
   const bottomPad = Math.max(insets.bottom, 12);
 
   const pillX = useSharedValue(calcPillX(state.index));
@@ -237,6 +276,7 @@ function GlassTabBar({ state, navigation }: any) {
               focused={state.index === index}
               primaryColor={colors.primary}
               subtextColor={colors.subtext}
+              badge={tab.name === 'cart' ? totalCount : undefined}
               onPress={() => {
                 const event = navigation.emit({
                   type: 'tabPress',
@@ -324,5 +364,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 0.1,
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -10,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    zIndex: 10,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    lineHeight: 12,
   },
 });

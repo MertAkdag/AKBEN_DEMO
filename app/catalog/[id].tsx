@@ -12,11 +12,13 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { useSharedValue, useAnimatedStyle, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 
 import { Spacing } from '../../src/Constants/Spacing';
 import { useProductDetail } from '../../src/Hooks/useCatalog';
 import { useResponsive } from '../../src/Hooks/UseResponsive';
 import { useTheme } from '../../src/Context/ThemeContext';
+import { useCart } from '../../src/Context/CartContext';
 import { Skeleton } from '../../src/Components/Ui/Skeleton';
 import { ErrorState } from '../../src/Components/Ui/ErrorState';
 import { lightImpact } from '../../src/Utils/haptics';
@@ -28,11 +30,32 @@ export default function ProductDetailScreen() {
   const { colors, isDark } = useTheme();
 
   const { data: product, isLoading, isError, refetch, isRefetching } = useProductDetail(id ?? null);
+  const { addToCart, isInCart } = useCart();
   const [imageError, setImageError] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
 
   const handleBack = useCallback(() => { lightImpact(); router.back(); }, [router]);
   const showImage = product?.imageUrl && !imageError;
   const GOLD = colors.catalogGold;
+  const alreadyInCart = product ? isInCart(product.id) : false;
+
+  /* Sepete ekle animasyonu */
+  const cartScale = useSharedValue(1);
+  const cartAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: cartScale.value }],
+  }));
+
+  const handleAddToCart = useCallback(() => {
+    if (!product) return;
+    lightImpact();
+    addToCart(product);
+    setJustAdded(true);
+    cartScale.value = withSequence(
+      withSpring(0.93, { damping: 15, stiffness: 400 }),
+      withSpring(1, { damping: 12, stiffness: 300 }),
+    );
+    setTimeout(() => setJustAdded(false), 2000);
+  }, [product, addToCart]);
 
   const Nav = () => (
     <SafeAreaView edges={['top']} style={{ backgroundColor: colors.background }}>
@@ -162,6 +185,42 @@ export default function ProductDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Sepete Ekle – Sabit alt bar */}
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: colors.background }}>
+        <View style={[s.bottomBar, { borderTopColor: colors.divider }]}>
+          <Animated.View style={[{ flex: 1 }, cartAnimStyle]}>
+            <Pressable
+              onPress={handleAddToCart}
+              style={({ pressed }) => [
+                s.addToCartBtn,
+                {
+                  backgroundColor: justAdded ? colors.success : GOLD,
+                  opacity: pressed ? 0.85 : 1,
+                  ...Platform.select({
+                    ios: {
+                      shadowColor: justAdded ? colors.success : GOLD,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.35,
+                      shadowRadius: 10,
+                    },
+                    android: { elevation: 6 },
+                  }),
+                },
+              ]}
+            >
+              <Ionicons
+                name={justAdded ? 'checkmark-circle' : alreadyInCart ? 'cart' : 'cart-outline'}
+                size={20}
+                color={colors.background}
+              />
+              <Text style={[s.addToCartText, { color: colors.background }]}>
+                {justAdded ? 'Eklendi!' : alreadyInCart ? 'Tekrar Ekle' : 'Sepete Ekle'}
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
@@ -193,7 +252,7 @@ const s = StyleSheet.create({
     fontWeight: '600', fontSize: 17,
   },
 
-  scroll: { padding: 20, paddingBottom: 60 },
+  scroll: { padding: 20, paddingBottom: 24 },
 
   imgWrap: { position: 'relative', marginBottom: 20 },
   imgBox: {
@@ -237,4 +296,25 @@ const s = StyleSheet.create({
   },
   descLabel: { fontSize: 12, fontWeight: '500', marginBottom: 8 },
   descText: { fontSize: 15, lineHeight: 23 },
+
+  /* Bottom bar */
+  bottomBar: {
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 48,
+    borderTopWidth: 1,
+  },
+  addToCartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    height: 54,
+    borderRadius: 16,
+  },
+  addToCartText: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
 });
