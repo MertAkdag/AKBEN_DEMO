@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '../../src/Shared/Header';
-import { SectionHeader } from '../../src/Components/Ui/SectionHeader';
 import { SearchInput } from '../../src/Components/Ui/SearchInput';
 import { FilterSegment } from '../../src/Components/Ui/FilterSegmented';
 import { CariCard } from '../../src/Components/Cards/CariCard';
@@ -14,76 +13,30 @@ import { ErrorState } from '../../src/Components/Ui/ErrorState';
 
 import { useFilteredCariler, useCarilerList } from '../../src/Hooks/useCariler';
 import { Cari, CariFilterOption, cariFilterLabel } from '../../src/Types/cari';
-import { Colors } from '../../src/Constants/Colors';
 import { Spacing } from '../../src/Constants/Spacing';
+import { useTheme } from '../../src/Context/ThemeContext';
 
+const TAB_BAR_HEIGHT = 100;
 const FILTER_OPTIONS: CariFilterOption[] = ['All', 'Alacakli', 'Borclu'];
 
 export default function CarilerScreen() {
   const router = useRouter();
-
+  const { colors } = useTheme();
   const [selectedFilter, setSelectedFilter] = useState<CariFilterOption>('All');
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: allCariler } = useCarilerList();
-  const { cariler, isLoading, isError, refetch, isRefetching } = useFilteredCariler(
-    selectedFilter,
-    searchQuery
-  );
+  const { cariler, isLoading, isError, refetch, isRefetching } = useFilteredCariler(selectedFilter, searchQuery);
+  const total = allCariler?.length ?? 0;
 
-  const totalCariler = allCariler?.length ?? 0;
-
-  const handleCariPress = useCallback(
-    (cari: Cari) => {
-      router.push(`/orders/${cari.id}`);
-    },
-    [router]
-  );
-
-  const handleAddCari = useCallback(() => {
-    router.push('/orders/add');
-  }, [router]);
-
-  const renderCariCard = useCallback(
-    ({ item }: { item: Cari }) => (
-      <CariCard cari={item} onPress={() => handleCariPress(item)} />
-    ),
-    [handleCariPress]
-  );
-
-  const renderEmptyComponent = useCallback(() => {
-    if (isLoading) return null;
-    return (
-      <EmptyState
-        icon="people-outline"
-        title="Cari bulunamadı"
-        message={
-          searchQuery
-            ? `"${searchQuery}" için sonuç bulunamadı`
-            : 'Henüz cari kaydı bulunmuyor'
-        }
-      />
-    );
-  }, [isLoading, searchQuery]);
-
-  const renderSkeletons = () => (
-    <View>
-      {[1, 2, 3, 4].map((key) => (
-        <OrderCardSkeleton key={key} />
-      ))}
-    </View>
-  );
+  const handleCariPress = useCallback((cari: Cari) => { router.push(`/orders/${cari.id}`); }, [router]);
+  const handleAddCari = useCallback(() => { router.push('/orders/add'); }, [router]);
 
   if (isError && !isRefetching) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.content}>
-          <ScreenHeader
-            title="Cariler"
-            subtitle={`Toplam ${totalCariler} cari`}
-            rightIcon="add"
-            onRightPress={handleAddCari}
-          />
+      <SafeAreaView style={[s.container, { backgroundColor: colors.background }]} edges={['top']}>
+        <View style={s.content}>
+          <ScreenHeader title="Cariler" subtitle={`${total} cari`} rightIcon="add" onRightPress={handleAddCari} />
           <ErrorState onRetry={refetch} />
         </View>
       </SafeAreaView>
@@ -91,20 +44,11 @@ export default function CarilerScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.content}>
-        <ScreenHeader
-          title="Cariler"
-          subtitle={`Toplam ${totalCariler} cari`}
-          rightIcon="add"
-          onRightPress={handleAddCari}
-        />
-        <SectionHeader title="Ara ve filtrele" showLine={false} />
-        <SearchInput
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Cari adı, telefon veya e-posta ara..."
-        />
+    <SafeAreaView style={[s.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <View style={s.content}>
+        <ScreenHeader title="Cariler" subtitle={`${total} cari`} rightIcon="add" onRightPress={handleAddCari} />
+
+        <SearchInput value={searchQuery} onChangeText={setSearchQuery} placeholder="Cari adı, telefon veya e-posta ara..." />
 
         <FilterSegment
           options={FILTER_OPTIONS.map((o) => cariFilterLabel[o])}
@@ -114,25 +58,26 @@ export default function CarilerScreen() {
             if (entry) setSelectedFilter(entry[0] as CariFilterOption);
           }}
         />
-        <SectionHeader title="Cari listesi" />
+
         {isLoading ? (
-          renderSkeletons()
+          <View>{[1, 2, 3, 4].map((k) => <OrderCardSkeleton key={k} />)}</View>
         ) : (
           <FlatList
             data={cariler}
             keyExtractor={(item) => item.id}
-            renderItem={renderCariCard}
+            renderItem={({ item, index }) => <CariCard cari={item} onPress={() => handleCariPress(item)} index={index} />}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
-            ListEmptyComponent={renderEmptyComponent}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefetching}
-                onRefresh={refetch}
-                tintColor={Colors.primary}
-                colors={[Colors.primary]}
+            contentContainerStyle={s.listContent}
+            ListEmptyComponent={
+              <EmptyState
+                icon="people-outline"
+                title="Cari bulunamadı"
+                message={searchQuery ? `"${searchQuery}" için sonuç yok` : 'Henüz cari kaydı bulunmuyor'}
+                actionLabel={searchQuery ? undefined : 'Cari ekle'}
+                onAction={searchQuery ? undefined : handleAddCari}
               />
             }
+            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} colors={[colors.primary]} />}
           />
         )}
       </View>
@@ -140,17 +85,8 @@ export default function CarilerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.screenPadding,
-  },
-  listContent: {
-    flexGrow: 1,
-    paddingBottom: 40,
-  },
+const s = StyleSheet.create({
+  container: { flex: 1 },
+  content: { flex: 1, paddingHorizontal: Spacing.screenPadding },
+  listContent: { flexGrow: 1, paddingBottom: TAB_BAR_HEIGHT },
 });

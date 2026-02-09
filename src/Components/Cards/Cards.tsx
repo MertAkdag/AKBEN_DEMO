@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle, TextStyle } from 'react-native';
-import { Colors } from '../../Constants/Colors';
 import { StatusBadge } from '../Ui/StatusBadge';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useResponsive } from '../../Hooks/UseResponsive';
+import { useTheme } from '../../Context/ThemeContext';
 
 type CardVariant = 'stat' | 'machine' | 'order' | 'profile';
 
@@ -20,7 +20,8 @@ interface Props {
 }
 
 export const Card = ({ variant, data, onPress, style }: Props) => {
-const { calculateWidth, calculateHeight, calculateFontSize, calculateIconSize } = useResponsive();
+  const { calculateWidth, calculateHeight, calculateFontSize, calculateIconSize } = useResponsive();
+  const { colors } = useTheme();
   
   const getCardDimensions = () => {
     switch (variant) {
@@ -50,12 +51,12 @@ const { calculateWidth, calculateHeight, calculateFontSize, calculateIconSize } 
     
     titleFont: { fontSize: calculateFontSize(20), fontWeight: '700' } as TextStyle,
     largeValueFont: { fontSize: calculateFontSize(28), fontWeight: '800' } as TextStyle,
-    labelFont: { fontSize: calculateFontSize(15), fontWeight: '600', color: Colors.subtext } as TextStyle,
+    labelFont: { fontSize: calculateFontSize(15), fontWeight: '600', color: colors.subtext } as TextStyle,
     
-    subTextFont: { fontSize: calculateFontSize(11), color: Colors.subtext } as TextStyle,
-    infoFont: { fontSize: calculateFontSize(11), color: Colors.subtext } as TextStyle,
+    subTextFont: { fontSize: calculateFontSize(11), color: colors.subtext } as TextStyle,
+    infoFont: { fontSize: calculateFontSize(11), color: colors.subtext } as TextStyle,
     
-    profileTitleFont: { fontSize: calculateFontSize(14), fontWeight: '700', color: Colors.text } as TextStyle,
+    profileTitleFont: { fontSize: calculateFontSize(14), fontWeight: '700', color: colors.text } as TextStyle,
 
     gapTiny: { marginTop: calculateHeight(2) } as ViewStyle,
     gapSmall: { marginTop: calculateHeight(4) } as ViewStyle,
@@ -67,17 +68,15 @@ const { calculateWidth, calculateHeight, calculateFontSize, calculateIconSize } 
     <View style={styles.statContainer}>
       <Text style={[dynamicStyles.labelFont]}>{item.title}</Text>
       <View style={{ flex: 1 }} /> 
-      <Text style={[styles.statValue, dynamicStyles.largeValueFont]}>
+      <Text style={[{ color: colors.text }, dynamicStyles.largeValueFont]}>
         {item.value}
       </Text>
     </View>
   );
 
-
   const renderprofileContent = (item: profileData) => (
     <View style={styles.statContainer}> 
-      <Ionicons name={item.icon as any} size={profileIconSize} color={Colors.subtext} />
-      
+      <Ionicons name={item.icon as any} size={profileIconSize} color={colors.subtext} />
       <View style={{ flex: 1 }} /> 
       <Text style={[dynamicStyles.profileTitleFont]} numberOfLines={2}>
         {item.title}
@@ -88,7 +87,7 @@ const { calculateWidth, calculateHeight, calculateFontSize, calculateIconSize } 
   const renderMachineContent = (item: MachineData) => (
     <View style={styles.flexColumn}>
       <View style={styles.header}>
-        <Text style={[styles.title, dynamicStyles.titleFont]} numberOfLines={1}>
+        <Text style={[{ color: colors.text, flex: 1, marginRight: 8 }, dynamicStyles.titleFont]} numberOfLines={1}>
           {item.name}
         </Text>
         <StatusBadge status={item.status} />
@@ -98,7 +97,7 @@ const { calculateWidth, calculateHeight, calculateFontSize, calculateIconSize } 
         Runtime: {item.runtime}h
       </Text>
 
-      <View style={[styles.divider, dynamicStyles.dividerMargin]} />
+      <View style={[{ height: 1, backgroundColor: colors.border }, dynamicStyles.dividerMargin]} />
 
       <View style={dynamicStyles.rowGap}>
         <Text style={[dynamicStyles.infoFont]} numberOfLines={1}>
@@ -114,22 +113,22 @@ const { calculateWidth, calculateHeight, calculateFontSize, calculateIconSize } 
   const renderOrderContent = (item: OrderData) => (
     <View style={styles.flexColumn}>
       <View style={styles.header}>
-        <Text style={[styles.title, dynamicStyles.titleFont]} numberOfLines={1}>
+        <Text style={[{ color: colors.text, flex: 1, marginRight: 8 }, dynamicStyles.titleFont]} numberOfLines={1}>
           {item.title}
         </Text>
         <StatusBadge status={item.status} showDot={false} />
       </View>
 
-      <View style={[styles.divider, dynamicStyles.dividerMargin]} />
+      <View style={[{ height: 1, backgroundColor: colors.border }, dynamicStyles.dividerMargin]} />
 
       <View style={dynamicStyles.rowGap}>
         <View style={styles.row}>
-          <Ionicons name="person-outline" size={iconSize} color={Colors.subtext} style={{marginRight: 6}} />
+          <Ionicons name="person-outline" size={iconSize} color={colors.subtext} style={{marginRight: 6}} />
           <Text style={[dynamicStyles.infoFont]}>Assigned to: {item.assignedTo}</Text>
         </View>
 
         <View style={styles.row}>
-          <Ionicons name="calendar-outline" size={iconSize} color={Colors.subtext} style={{marginRight: 6}} />
+          <Ionicons name="calendar-outline" size={iconSize} color={colors.subtext} style={{marginRight: 6}} />
           <Text style={[dynamicStyles.infoFont]}>
              Deadline: {new Date(item.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </Text>
@@ -150,7 +149,7 @@ const { calculateWidth, calculateHeight, calculateFontSize, calculateIconSize } 
 
   return (
     <TouchableOpacity
-      style={[styles.baseCard, dynamicStyles.card, style]}
+      style={[{ backgroundColor: colors.card, justifyContent: 'center' }, dynamicStyles.card, style]}
       activeOpacity={onPress ? 0.7 : 1}
       onPress={onPress}
       disabled={!onPress}
@@ -161,10 +160,6 @@ const { calculateWidth, calculateHeight, calculateFontSize, calculateIconSize } 
 };
 
 const styles = StyleSheet.create({
-  baseCard: {
-    backgroundColor: Colors.card, 
-    justifyContent: 'center',
-  },
   flexColumn: {
     flex: 1,
     justifyContent: 'center',
@@ -173,25 +168,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
   },
-  statValue: {
-    color: Colors.text,
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  title: {
-    color: Colors.text,
-    flex: 1,
-    marginRight: 8,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.border, 
-  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-  }
+  },
 });

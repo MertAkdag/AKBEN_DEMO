@@ -1,14 +1,16 @@
 import { Stack } from 'expo-router';
-import { Colors } from '../../src/Constants/Colors';
+import { useTheme } from '../../src/Context/ThemeContext';
 
 export default function MachinesLayout() {
+  const { colors } = useTheme();
+
   return (
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: Colors.background,
+          backgroundColor: colors.background,
         },
-        headerTintColor: Colors.text,
+        headerTintColor: colors.text,
         headerTitleStyle: {
           fontWeight: '600',
         },
@@ -17,4 +19,3 @@ export default function MachinesLayout() {
     />
   );
 }
-

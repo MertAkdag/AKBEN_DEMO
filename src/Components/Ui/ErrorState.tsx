@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors } from '../../Constants/Colors';
 import { Spacing } from '../../Constants/Spacing';
 import { Button } from './Button';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useResponsive } from '../../Hooks/UseResponsive';
+import { useTheme } from '../../Context/ThemeContext';
 
 interface Props {
   message?: string;
@@ -13,13 +13,15 @@ interface Props {
 
 export const ErrorState = ({ message = 'Bir hata oluştu', onRetry }: Props) => {
   const { calculateFontSize } = useResponsive();
+  const { colors } = useTheme();
+
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
-        <View style={styles.iconWrap}>
-          <Ionicons name="alert-circle-outline" size={44} color={Colors.error} />
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.iconWrap, { backgroundColor: colors.error + '18' }]}>
+          <Ionicons name="alert-circle-outline" size={44} color={colors.error} />
         </View>
-        <Text style={[styles.message, { fontSize: calculateFontSize(15) }]}>{message}</Text>
+        <Text style={[styles.message, { fontSize: calculateFontSize(15), color: colors.subtext }]}>{message}</Text>
         {onRetry && (
           <Button
             title="Tekrar Dene"
@@ -42,11 +44,9 @@ const styles = StyleSheet.create({
     padding: Spacing.xxl,
   },
   card: {
-    backgroundColor: Colors.card,
     borderRadius: Spacing.radiusXl,
     padding: Spacing.xxl,
     borderWidth: 1,
-    borderColor: Colors.border,
     alignItems: 'center',
     maxWidth: 320,
   },
@@ -54,13 +54,11 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: Colors.error + '18',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.lg,
   },
   message: {
-    color: Colors.subtext,
     textAlign: 'center',
   },
 });

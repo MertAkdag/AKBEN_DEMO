@@ -1,7 +1,8 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, TouchableOpacityProps, ViewStyle, TextStyle } from 'react-native';
-import { Colors } from '../../Constants/Colors';
 import { useResponsive } from '../../Hooks/UseResponsive';
+import { useTheme } from '../../Context/ThemeContext';
+import { lightImpact } from '../../Utils/haptics';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'default' | 'sm';
@@ -26,22 +27,23 @@ export const Button = ({
   disabled, 
   ...props 
 }: Props) => {
-
   const { calculateHeight, calculateFontSize, calculateWidth } = useResponsive();
+  const { colors } = useTheme();
+
   const getContainerStyle = (): ViewStyle => {
     switch (variant) {
       case 'primary':
-        return { backgroundColor: Colors.primary, borderWidth: 0 };
+        return { backgroundColor: colors.primary, borderWidth: 0 };
       case 'secondary':
-        return { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border };
+        return { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border };
       case 'outline':
-        return { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.primary };
+        return { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.primary };
       case 'danger':
-        return { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.error };
+        return { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.error };
       case 'ghost':
         return { backgroundColor: 'transparent', borderWidth: 0 };
       default:
-        return { backgroundColor: Colors.primary, borderWidth: 0 };
+        return { backgroundColor: colors.primary, borderWidth: 0 };
     }
   };
 
@@ -50,13 +52,13 @@ export const Button = ({
       case 'primary':
         return { color: '#FFF' };
       case 'secondary':
-        return { color: Colors.text };
+        return { color: colors.text };
       case 'outline':
-        return { color: Colors.primary };
+        return { color: colors.primary };
       case 'danger':
-        return { color: Colors.error };
+        return { color: colors.error };
       case 'ghost':
-        return { color: Colors.subtext };
+        return { color: colors.subtext };
       default:
         return { color: '#FFF' };
     }
@@ -70,8 +72,14 @@ export const Button = ({
     width: fullWidth ? '100%' as const : calculateWidth(300),
     height: containerHeight,
   };
+  const handlePressIn = (e: any) => {
+    if (!disabled && !isLoading) lightImpact();
+    props.onPressIn?.(e);
+  };
+
   return (
     <TouchableOpacity
+      {...props}
       style={[
         styles.base,
         { borderRadius, paddingHorizontal: horizontalPadding },
@@ -82,7 +90,7 @@ export const Button = ({
       ]}
       disabled={disabled || isLoading}
       activeOpacity={0.7}
-      {...props}
+      onPressIn={handlePressIn}
     >
       {isLoading ? (
         <ActivityIndicator color={getTextStyle().color} />

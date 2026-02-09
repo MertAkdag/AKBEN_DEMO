@@ -1,21 +1,21 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../Constants/Colors';
 import { Spacing } from '../../Constants/Spacing';
-import { OrderStatus, statusToDisplay } from '../../Types/order';
+import { OrderStatus } from '../../Types/order';
+import { useTheme } from '../../Context/ThemeContext';
 
 interface StatusOption {
   value: OrderStatus;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-  color: string;
+  colorKey: 'warning' | 'info' | 'success';
 }
 
 const STATUS_OPTIONS: StatusOption[] = [
-  { value: 'PENDING', label: 'Bekleyen', icon: 'time-outline', color: Colors.warning },
-  { value: 'IN_PROGRESS', label: 'Üretimde', icon: 'play-circle-outline', color: Colors.info },
-  { value: 'COMPLETED', label: 'Tamamlandı', icon: 'checkmark-circle-outline', color: Colors.success },
+  { value: 'PENDING', label: 'Bekleyen', icon: 'time-outline', colorKey: 'warning' },
+  { value: 'IN_PROGRESS', label: 'Üretimde', icon: 'play-circle-outline', colorKey: 'info' },
+  { value: 'COMPLETED', label: 'Tamamlandı', icon: 'checkmark-circle-outline', colorKey: 'success' },
 ];
 
 interface Props {
@@ -26,11 +26,14 @@ interface Props {
 }
 
 export const StatusSegment = ({ currentStatus, onStatusChange, isLoading, disabled }: Props) => {
+  const { colors } = useTheme();
+
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Durum Güncelle</Text>
+      <Text style={[styles.label, { color: colors.subtext }]}>Durum Güncelle</Text>
       <View style={styles.segmentContainer}>
         {STATUS_OPTIONS.map((option) => {
+          const color = colors[option.colorKey];
           const isSelected = currentStatus === option.value;
           const isDisabled = disabled || (isLoading && !isSelected);
           
@@ -39,25 +42,26 @@ export const StatusSegment = ({ currentStatus, onStatusChange, isLoading, disabl
               key={option.value}
               style={[
                 styles.segment,
-                isSelected && { backgroundColor: option.color + '20', borderColor: option.color },
+                { backgroundColor: colors.card, borderColor: colors.border },
+                isSelected && { backgroundColor: color + '20', borderColor: color },
               ]}
               onPress={() => !isDisabled && onStatusChange(option.value)}
               disabled={isDisabled}
               activeOpacity={0.7}
             >
               {isLoading && isSelected ? (
-                <ActivityIndicator size="small" color={option.color} />
+                <ActivityIndicator size="small" color={color} />
               ) : (
                 <Ionicons 
                   name={option.icon} 
                   size={18} 
-                  color={isSelected ? option.color : Colors.subtext} 
+                  color={isSelected ? color : colors.subtext} 
                 />
               )}
               <Text 
                 style={[
                   styles.segmentText,
-                  { color: isSelected ? option.color : Colors.subtext },
+                  { color: isSelected ? color : colors.subtext },
                   isSelected && styles.segmentTextActive,
                 ]}
                 numberOfLines={1}
@@ -65,7 +69,7 @@ export const StatusSegment = ({ currentStatus, onStatusChange, isLoading, disabl
                 {option.label}
               </Text>
               {isSelected && (
-                <View style={[styles.checkmark, { backgroundColor: option.color }]}>
+                <View style={[styles.checkmark, { backgroundColor: color }]}>
                   <Ionicons name="checkmark" size={10} color="#FFF" />
                 </View>
               )}
@@ -82,7 +86,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   label: {
-    color: Colors.subtext,
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 1,
@@ -101,9 +104,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.sm,
     borderRadius: Spacing.radiusMd,
-    backgroundColor: Colors.card,
     borderWidth: 2,
-    borderColor: Colors.border,
     gap: Spacing.xs,
     minHeight: 70,
   },

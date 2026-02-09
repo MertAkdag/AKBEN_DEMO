@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors } from '../../Constants/Colors';
+import { useTheme } from '../../Context/ThemeContext';
 
 interface Props {
   status: string;
@@ -8,14 +8,15 @@ interface Props {
 }
 
 export const StatusBadge = ({ status, showDot = true }: Props) => {
+  const { colors } = useTheme();
   const normalizedStatus = status?.toLowerCase() || 'unknown';
 
   const getVariantColor = () => {
-    if (['active', 'running', 'completed'].includes(normalizedStatus)) return Colors.success;
-    if (['maintenance', 'in-progress'].includes(normalizedStatus)) return Colors.info;
-    if (['pending', 'warning'].includes(normalizedStatus)) return Colors.warning;
-    if (['offline', 'deactivated', 'error'].includes(normalizedStatus)) return Colors.error;
-    return Colors.subtext;
+    if (['active', 'running', 'completed'].includes(normalizedStatus)) return colors.success;
+    if (['maintenance', 'in-progress'].includes(normalizedStatus)) return colors.info;
+    if (['pending', 'warning'].includes(normalizedStatus)) return colors.warning;
+    if (['offline', 'deactivated', 'error'].includes(normalizedStatus)) return colors.error;
+    return colors.subtext;
   };
 
   const color = getVariantColor();
@@ -23,7 +24,7 @@ export const StatusBadge = ({ status, showDot = true }: Props) => {
   return (
     <View style={[styles.badge, { backgroundColor: color + '20', borderColor: color + '40' }]}>
       {showDot && <View style={[styles.dot, { backgroundColor: color }]} />}
-      <Text style={[styles.text, { color: color }]}>
+      <Text style={[styles.text, { color }]}>
         {status}
       </Text>
     </View>
@@ -50,5 +51,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'capitalize',
-  }
+  },
 });

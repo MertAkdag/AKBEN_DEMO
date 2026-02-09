@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps } from 'react-native';
-import { Colors } from '../../Constants/Colors';
 import { useResponsive } from '../../Hooks/UseResponsive';
+import { useTheme } from '../../Context/ThemeContext';
 
 interface Props extends TextInputProps {
   label?: string;
@@ -10,8 +10,10 @@ interface Props extends TextInputProps {
   fullWidth?: boolean;
 }
 
-export const CustomInput = ({ label, error, fullWidth, style, ...props }: Props) => {
+export const CustomInput = ({ label, error, fullWidth, style, onFocus, onBlur, ...props }: Props) => {
   const { calculateWidth, calculateHeight, calculateFontSize } = useResponsive();
+  const { colors } = useTheme();
+  const [isFocused, setIsFocused] = useState(false);
   const isMultiline = props.multiline === true;
 
   const dynamicStyles = {
@@ -19,30 +21,30 @@ export const CustomInput = ({ label, error, fullWidth, style, ...props }: Props)
       marginBottom: calculateHeight(16),
       width: fullWidth ? '100%' as const : calculateWidth(300),
     },
-    label: {
-      fontSize: calculateFontSize(14),
-      marginBottom: calculateHeight(8),
-    },
     inputWrapper: {
       height: isMultiline ? undefined : calculateHeight(50),
       minHeight: isMultiline ? calculateHeight(96) : undefined,
       alignItems: isMultiline ? ('flex-start' as const) : undefined,
+      backgroundColor: colors.input,
+      borderColor: error ? colors.error : isFocused ? colors.primary : 'transparent',
+      borderWidth: error || isFocused ? 1.5 : 1,
     },
     input: {
       paddingHorizontal: calculateWidth(16),
       fontSize: calculateFontSize(16),
-    },
-    errorText: {
-      fontSize: calculateFontSize(12),
-      marginTop: calculateHeight(4),
+      color: colors.text,
     },
   };
 
   return (
     <View style={[styles.container, dynamicStyles.container]}>
-      {label && <Text style={[styles.label, dynamicStyles.label]}>{label}</Text>}
+      {label && (
+        <Text style={[styles.label, { fontSize: calculateFontSize(14), marginBottom: calculateHeight(8), color: colors.text }]}>
+          {label}
+        </Text>
+      )}
       
-      <View style={[styles.inputWrapper, dynamicStyles.inputWrapper, error && styles.errorBorder]}>
+      <View style={[styles.inputWrapper, dynamicStyles.inputWrapper]}>
         <TextInput
           style={[
             styles.input,
@@ -50,33 +52,39 @@ export const CustomInput = ({ label, error, fullWidth, style, ...props }: Props)
             isMultiline && styles.inputMultiline,
             style,
           ]}
-          placeholderTextColor={Colors.subtext}
-          cursorColor={Colors.primary}
+          placeholderTextColor={colors.subtext}
+          cursorColor={colors.primary}
+          onFocus={(e) => {
+            setIsFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            onBlur?.(e);
+          }}
           {...props}
         />
       </View>
       
-      {error && <Text style={[styles.errorText, dynamicStyles.errorText]}>{error}</Text>}
+      {error && (
+        <Text style={[styles.errorText, { fontSize: calculateFontSize(12), marginTop: calculateHeight(4), color: colors.error }]}>
+          {error}
+        </Text>
+      )}
     </View>
   );
 };
 
-// Statik stiller (responsive olmayan değerler)
 const styles = StyleSheet.create({
   container: {},
   label: {
-    color: Colors.text,
     fontWeight: '500',
   },
   inputWrapper: {
-    backgroundColor: Colors.input,
-    borderRadius: 8,
+    borderRadius: 12,
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'transparent',
   },
   input: {
-    color: Colors.text,
     height: '100%',
   },
   inputMultiline: {
@@ -85,10 +93,5 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     textAlignVertical: 'top',
   },
-  errorBorder: {
-    borderColor: Colors.error,
-  },
-  errorText: {
-    color: Colors.error,
-  },
+  errorText: {},
 });

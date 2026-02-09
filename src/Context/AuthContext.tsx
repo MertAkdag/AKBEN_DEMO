@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, PropsWithChildren } from 'react';
 import { authService, User } from '../Api/authService';
 import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
+import { lightImpact } from '../Utils/haptics';
 
 interface AuthContextType {
   user: User | null;
@@ -70,6 +71,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   };
 
   const logout = async () => {
+    lightImpact();
     try {
       await authService.logout();
     } catch (_) {}

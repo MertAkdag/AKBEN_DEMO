@@ -1,12 +1,14 @@
 import { Stack } from 'expo-router';
-import { Colors } from '../../src/Constants/Colors';
+import { useTheme } from '../../src/Context/ThemeContext';
 
 export default function OrdersLayout() {
+  const { colors } = useTheme();
+
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: Colors.background },
+        contentStyle: { backgroundColor: colors.background },
         presentation: 'modal',
         animation: 'slide_from_bottom',
       }}

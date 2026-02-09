@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet, ViewStyle } from 'react-native';
-import { Colors } from '../../Constants/Colors';
+import { useTheme } from '../../Context/ThemeContext';
 
 interface Props {
   width: number | string;
@@ -10,6 +10,7 @@ interface Props {
 }
 
 export const Skeleton = ({ width, height, borderRadius = 8, style }: Props) => {
+  const { colors } = useTheme();
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -34,21 +35,23 @@ export const Skeleton = ({ width, height, borderRadius = 8, style }: Props) => {
   return (
     <Animated.View
       style={[
-        styles.skeleton,
-        { width: Number(width), height: Number(height), borderRadius: Number(borderRadius), opacity },
+        { backgroundColor: colors.skeleton, width: Number(width), height: Number(height), borderRadius: Number(borderRadius), opacity },
         style,
       ]}
     />
   );
 };
 
-export const StatCardSkeleton = () => (
-  <View style={styles.statCard}>
-    <Skeleton width={80} height={14} />
-    <View style={{ flex: 1 }} />
-    <Skeleton width={60} height={32} />
-  </View>
-);
+export const StatCardSkeleton = () => {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+      <Skeleton width={80} height={14} />
+      <View style={{ flex: 1 }} />
+      <Skeleton width={60} height={32} />
+    </View>
+  );
+};
 
 export const ChartSkeleton = () => (
   <View style={styles.chartContainer}>
@@ -57,40 +60,42 @@ export const ChartSkeleton = () => (
   </View>
 );
 
-export const MachineCardSkeleton = () => (
-  <View style={styles.machineCard}>
-    <View style={styles.machineHeader}>
-      <Skeleton width={160} height={18} />
-      <Skeleton width={80} height={24} borderRadius={12} />
+export const MachineCardSkeleton = () => {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.machineCard, { backgroundColor: colors.card }]}>
+      <View style={styles.machineHeader}>
+        <Skeleton width={160} height={18} />
+        <Skeleton width={80} height={24} borderRadius={12} />
+      </View>
+      <Skeleton width={100} height={14} style={{ marginBottom: 12 }} />
+      <View style={styles.machineInfoRow}>
+        <Skeleton width={120} height={14} />
+        <Skeleton width={80} height={14} />
+      </View>
     </View>
-    <Skeleton width={100} height={14} style={{ marginBottom: 12 }} />
-    <View style={styles.machineInfoRow}>
-      <Skeleton width={120} height={14} />
-      <Skeleton width={80} height={14} />
-    </View>
-  </View>
-);
+  );
+};
 
-export const OrderCardSkeleton = () => (
-  <View style={styles.orderCard}>
-    <View style={styles.orderHeader}>
-      <Skeleton width={180} height={18} />
-      <Skeleton width={90} height={28} borderRadius={14} />
+export const OrderCardSkeleton = () => {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.orderCard, { backgroundColor: colors.card }]}>
+      <View style={styles.orderHeader}>
+        <Skeleton width={180} height={18} />
+        <Skeleton width={90} height={28} borderRadius={14} />
+      </View>
+      <View style={[styles.orderDivider, { backgroundColor: colors.border }]} />
+      <Skeleton width={150} height={14} style={{ marginBottom: 8 }} />
+      <Skeleton width={130} height={14} />
     </View>
-    <View style={styles.orderDivider} />
-    <Skeleton width={150} height={14} style={{ marginBottom: 8 }} />
-    <Skeleton width={130} height={14} />
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
-  skeleton: {
-    backgroundColor: Colors.card,
-  },
   statCard: {
     width: '48%',
     height: 126,
-    backgroundColor: Colors.card,
     borderRadius: 14,
     padding: 14,
     marginBottom: 14,
@@ -100,7 +105,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   machineCard: {
-    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -116,7 +120,6 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   orderCard: {
-    backgroundColor: Colors.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -128,7 +131,6 @@ const styles = StyleSheet.create({
   },
   orderDivider: {
     height: 1,
-    backgroundColor: Colors.border,
     marginVertical: 12,
   },
 });

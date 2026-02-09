@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { Colors } from '../../Constants/Colors';
 import { useResponsive } from '../../Hooks/UseResponsive';
+import { useTheme } from '../../Context/ThemeContext';
 
 interface Props {
   options: string[]; 
@@ -11,6 +11,7 @@ interface Props {
 
 export const FilterSegment = ({ options, selected, onSelect }: Props) => {
   const { calculateWidth, calculateFontSize } = useResponsive();
+  const { colors } = useTheme();
 
   return (
     <View style={styles.container}>
@@ -22,15 +23,17 @@ export const FilterSegment = ({ options, selected, onSelect }: Props) => {
               key={option}
               style={[
                 styles.pill,
-                isSelected ? styles.pillActive : styles.pillInactive,
-                { paddingHorizontal: calculateWidth(20) }
+                { paddingHorizontal: calculateWidth(20) },
+                isSelected
+                  ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                  : { backgroundColor: colors.card, borderColor: colors.border },
               ]}
               onPress={() => onSelect(option)}
             >
               <Text style={[
                 styles.text,
                 { fontSize: calculateFontSize(13) },
-                isSelected ? styles.textActive : styles.textInactive
+                isSelected ? { color: '#FFF' } : { color: colors.subtext },
               ]}>
                 {option}
               </Text>
@@ -54,21 +57,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
     borderWidth: 1,
   },
-  pillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  pillInactive: {
-    backgroundColor: Colors.card,
-    borderColor: Colors.border,
-  },
   text: {
     fontWeight: '600',
-  },
-  textActive: {
-    color: '#FFF',
-  },
-  textInactive: {
-    color: Colors.subtext,
   },
 });

@@ -1,5 +1,6 @@
-import { Colors } from '../Constants/Colors';
 import { MachineStatus } from '../Types/machine';
+import type { ThemeColors } from '../Constants/Theme';
+import { DarkTheme } from '../Constants/Theme';
 
 export const formatRuntime = (minutes: number): string => {
   const hours = Math.floor(minutes / 60);
@@ -10,16 +11,16 @@ export const formatRuntime = (minutes: number): string => {
   return `${hours} saat ${mins} dk`;
 };
 
-export const getStatusColor = (status: MachineStatus): string => {
+export const getStatusColor = (status: MachineStatus, colors: ThemeColors = DarkTheme): string => {
   switch (status) {
     case 'ACTIVE':
-      return Colors.success;
+      return colors.success;
     case 'MAINTENANCE':
-      return Colors.warning;
+      return colors.warning;
     case 'OFFLINE':
-      return Colors.error;
+      return colors.error;
     default:
-      return Colors.subtext;
+      return colors.subtext;
   }
 };
 
@@ -35,4 +36,3 @@ export const getStatusText = (status: MachineStatus): string => {
       return 'Bilinmiyor';
   }
 };
-

@@ -9,6 +9,7 @@ import {
   PanResponder,
   Dimensions,
   TouchableWithoutFeedback,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,65 +18,49 @@ import { Button } from '../../src/Components/Ui/Button';
 import { Skeleton } from '../../src/Components/Ui/Skeleton';
 
 import { useCariDetail } from '../../src/Hooks/useCariler';
-import { Colors } from '../../src/Constants/Colors';
 import { Spacing } from '../../src/Constants/Spacing';
 import { useResponsive } from '../../src/Hooks/UseResponsive';
+import { useTheme } from '../../src/Context/ThemeContext';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SH } = Dimensions.get('window');
 const DISMISS_THRESHOLD = 100;
 
 export default function CariDetailModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { calculateFontSize } = useResponsive();
+  const { colors, isDark } = useTheme();
 
   const { data: cari, isLoading, isError } = useCariDetail(id ?? null);
 
   const translateY = useRef(new Animated.Value(0)).current;
 
   const handleClose = useCallback(() => {
-    Animated.timing(translateY, {
-      toValue: SCREEN_HEIGHT,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => router.back());
+    Animated.timing(translateY, { toValue: SH, duration: 200, useNativeDriver: true }).start(() => router.back());
   }, [router, translateY]);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 5,
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) translateY.setValue(gestureState.dy);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > DISMISS_THRESHOLD || gestureState.vy > 0.5) {
-          handleClose();
-        } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            useNativeDriver: true,
-            bounciness: 8,
-          }).start();
-        }
+      onMoveShouldSetPanResponder: (_, g) => g.dy > 5,
+      onPanResponderMove: (_, g) => { if (g.dy > 0) translateY.setValue(g.dy); },
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > DISMISS_THRESHOLD || g.vy > 0.5) handleClose();
+        else Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 8 }).start();
       },
     })
   ).current;
 
+  /* ─── Loading ─── */
   if (isLoading) {
     return (
-      <View style={styles.modalContainer}>
-        <TouchableWithoutFeedback onPress={handleClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
-        <Animated.View style={[styles.modalContent, { transform: [{ translateY }] }]}>
-          <View {...panResponder.panHandlers}>
-            <View style={styles.handle} />
-          </View>
-          <View style={styles.loadingContainer}>
+      <View style={s.modalWrap}>
+        <TouchableWithoutFeedback onPress={handleClose}><View style={s.backdrop} /></TouchableWithoutFeedback>
+        <Animated.View style={[s.modal, { backgroundColor: colors.background, transform: [{ translateY }] }]}>
+          <View {...panResponder.panHandlers}><View style={[s.handle, { backgroundColor: colors.subtext + '60' }]} /></View>
+          <View style={{ padding: 20 }}>
             <Skeleton width={200} height={28} style={{ marginBottom: 20 }} />
             <Skeleton width="100%" height={60} style={{ marginBottom: 16 }} />
-            <Skeleton width={150} height={20} style={{ marginBottom: 8 }} />
             <Skeleton width={150} height={20} />
           </View>
         </Animated.View>
@@ -83,19 +68,16 @@ export default function CariDetailModal() {
     );
   }
 
+  /* ─── Error ─── */
   if (isError || !cari) {
     return (
-      <View style={styles.modalContainer}>
-        <TouchableWithoutFeedback onPress={handleClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
-        <Animated.View style={[styles.modalContent, { transform: [{ translateY }] }]}>
-          <View {...panResponder.panHandlers}>
-            <View style={styles.handle} />
-          </View>
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle-outline" size={48} color={Colors.error} />
-            <Text style={styles.errorText}>Cari yüklenemedi</Text>
+      <View style={s.modalWrap}>
+        <TouchableWithoutFeedback onPress={handleClose}><View style={s.backdrop} /></TouchableWithoutFeedback>
+        <Animated.View style={[s.modal, { backgroundColor: colors.background, transform: [{ translateY }] }]}>
+          <View {...panResponder.panHandlers}><View style={[s.handle, { backgroundColor: colors.subtext + '60' }]} /></View>
+          <View style={s.errorWrap}>
+            <Ionicons name="alert-circle-outline" size={44} color={colors.error} />
+            <Text style={[s.errorText, { color: colors.text }]}>Cari yüklenemedi</Text>
             <Button title="Kapat" variant="outline" onPress={handleClose} style={{ marginTop: 16 }} />
           </View>
         </Animated.View>
@@ -105,318 +87,232 @@ export default function CariDetailModal() {
 
   const isAlacak = cari.balance > 0;
   const isBorclu = cari.balance < 0;
-  const balanceColor = isAlacak ? Colors.success : isBorclu ? Colors.warning : Colors.subtext;
+  const accent = isAlacak ? colors.success : isBorclu ? colors.warning : colors.subtext;
   const balanceLabel = isAlacak ? 'Alacak' : isBorclu ? 'Borç' : 'Bakiye';
 
-  return (
-    <View style={styles.modalContainer}>
-      <TouchableWithoutFeedback onPress={handleClose}>
-        <View style={styles.backdrop} />
-      </TouchableWithoutFeedback>
-      <Animated.View style={[styles.modalContent, { transform: [{ translateY }] }]}>
-        <View {...panResponder.panHandlers}>
-          <View style={styles.handle} />
-        </View>
+  const initials = cari.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
-        <View style={styles.header}>
-          <Text style={[styles.title, { fontSize: calculateFontSize(22) }]} numberOfLines={2}>
-            {cari.name}
-          </Text>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton} accessibilityLabel="Kapat">
-            <Ionicons name="close" size={20} color={Colors.text} />
+  return (
+    <View style={s.modalWrap}>
+      <TouchableWithoutFeedback onPress={handleClose}><View style={s.backdrop} /></TouchableWithoutFeedback>
+      <Animated.View style={[s.modal, { backgroundColor: colors.background, transform: [{ translateY }] }]}>
+        <View {...panResponder.panHandlers}><View style={[s.handle, { backgroundColor: colors.subtext + '60' }]} /></View>
+
+        {/* Header */}
+        <View style={s.header}>
+          <View style={[s.avatar, { backgroundColor: accent + '14', borderColor: accent + '25' }]}>
+            <Text style={[s.avatarText, { color: accent }]}>{initials}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.title, { fontSize: calculateFontSize(22), color: colors.text }]} numberOfLines={2}>{cari.name}</Text>
+          </View>
+          <TouchableOpacity onPress={handleClose} style={[s.closeBtn, { backgroundColor: colors.divider }]} accessibilityLabel="Kapat">
+            <Ionicons name="close" size={18} color={colors.text} />
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          style={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContentContainer}
-        >
-          <View style={[styles.balanceCard, { backgroundColor: balanceColor + '18' }]}>
-            <Text style={[styles.balanceLabel, { fontSize: calculateFontSize(12) }]}>
-              {balanceLabel}
-            </Text>
-            <Text style={[styles.balanceValue, { color: balanceColor, fontSize: calculateFontSize(24) }]}>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollInner}>
+          {/* Balance card */}
+          <View style={[s.balanceCard, {
+            backgroundColor: colors.card, borderColor: accent + '15',
+            ...Platform.select({
+              ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0.12 : 0.05, shadowRadius: 10 },
+              android: { elevation: 4 },
+            }),
+          }]}>
+            <Text style={[s.balanceLabel, { color: colors.subtext }]}>{balanceLabel}</Text>
+            <Text style={[s.balanceVal, { color: accent }]}>
               {Math.abs(cari.balance).toLocaleString('tr-TR')} ₺
             </Text>
           </View>
 
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { fontSize: calculateFontSize(12) }]}>TELEFON</Text>
-            <View style={styles.row}>
-              <Ionicons name="call-outline" size={18} color={Colors.subtext} />
-              <Text style={[styles.sectionValue, { fontSize: calculateFontSize(15) }]} selectable>
-                {cari.phone}
-              </Text>
-            </View>
+          {/* Info sections */}
+          <View style={[s.infoCard, {
+            backgroundColor: colors.card, borderColor: colors.cardBorder,
+            ...Platform.select({
+              ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0.12 : 0.05, shadowRadius: 8 },
+              android: { elevation: 3 },
+            }),
+          }]}>
+            <SectionRow icon="call" label="Telefon" value={cari.phone} selectable colors={colors} />
+            {cari.email && <SectionRow icon="mail" label="E-posta" value={cari.email} selectable colors={colors} />}
+            {cari.address && <SectionRow icon="location" label="Adres" value={cari.address} last colors={colors} />}
+            {!cari.email && !cari.address && <SectionRow icon="call" label="Telefon" value={cari.phone} last colors={colors} />}
           </View>
 
-          {cari.email ? (
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { fontSize: calculateFontSize(12) }]}>E-POSTA</Text>
-              <View style={styles.row}>
-                <Ionicons name="mail-outline" size={18} color={Colors.subtext} />
-                <Text style={[styles.sectionValue, { fontSize: calculateFontSize(15) }]} selectable>
-                  {cari.email}
-                </Text>
-              </View>
+          {cari.notes && (
+            <View style={[s.notesCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+              <Text style={[s.notesLabel, { color: colors.subtext }]}>Notlar</Text>
+              <Text style={[s.notesText, { color: colors.text }]}>{cari.notes}</Text>
             </View>
-          ) : null}
+          )}
 
-          {cari.address ? (
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { fontSize: calculateFontSize(12) }]}>ADRES</Text>
-              <Text style={[styles.sectionValue, { fontSize: calculateFontSize(15) }]}>
-                {cari.address}
-              </Text>
-            </View>
-          ) : null}
-
-          {cari.notes ? (
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { fontSize: calculateFontSize(12) }]}>NOTLAR</Text>
-              <Text style={[styles.notes, { fontSize: calculateFontSize(15) }]}>{cari.notes}</Text>
-            </View>
-          ) : null}
-
-          {/* CRM: Banka Hesapları (CUSTOMER BANKS) */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { fontSize: calculateFontSize(12) }]}>
-              BANKA HESAPLARI
-            </Text>
-            {cari.banks && cari.banks.length > 0 ? (
-              cari.banks.map((bank) => (
-                <View key={bank.id} style={styles.card}>
-                  <View style={styles.cardRow}>
-                    <Ionicons name="business-outline" size={18} color={Colors.primary} />
-                    <Text style={[styles.cardTitle, { fontSize: calculateFontSize(15) }]}>
-                      {bank.bankName}
-                    </Text>
-                  </View>
-                  <Text style={[styles.cardValue, { fontSize: calculateFontSize(13) }]} selectable>
-                    {bank.iban}
-                  </Text>
-                  {bank.accountName ? (
-                    <Text style={[styles.cardSub, { fontSize: calculateFontSize(12) }]}>
-                      Hesap: {bank.accountName}
-                      {bank.branch ? ` · ${bank.branch}` : ''}
-                    </Text>
-                  ) : null}
-                </View>
-              ))
-            ) : (
-              <Text style={[styles.emptyText, { fontSize: calculateFontSize(13) }]}>
-                Kayıtlı banka hesabı yok
-              </Text>
-            )}
-          </View>
-
-          {/* CRM: İletişim Kişileri (CUSTOMER CONTACTS) */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { fontSize: calculateFontSize(12) }]}>
-              İLETİŞİM KİŞİLERİ
-            </Text>
-            {cari.contacts && cari.contacts.length > 0 ? (
-              cari.contacts.map((contact) => (
-                <View key={contact.id} style={styles.card}>
-                  <View style={styles.cardRow}>
-                    <Ionicons name="person-circle-outline" size={18} color={Colors.primary} />
-                    <Text style={[styles.cardTitle, { fontSize: calculateFontSize(15) }]}>
-                      {contact.name}
-                    </Text>
-                    {contact.title ? (
-                      <View style={styles.titleBadge}>
-                        <Text style={[styles.titleBadgeText, { fontSize: calculateFontSize(10) }]}>
-                          {contact.title}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <View style={styles.row}>
-                    <Ionicons name="call-outline" size={14} color={Colors.subtext} />
-                    <Text style={[styles.sectionValue, { fontSize: calculateFontSize(13) }]} selectable>
-                      {contact.phone}
-                    </Text>
-                  </View>
-                  {contact.email ? (
-                    <View style={styles.row}>
-                      <Ionicons name="mail-outline" size={14} color={Colors.subtext} />
-                      <Text style={[styles.sectionValue, { fontSize: calculateFontSize(13) }]} selectable>
-                        {contact.email}
-                      </Text>
+          {/* Banks */}
+          {cari.banks && cari.banks.length > 0 && (
+            <View style={s.section}>
+              <Text style={[s.sectionTitle, { color: colors.subtext }]}>Banka Hesapları</Text>
+              {cari.banks.map(bank => (
+                <View key={bank.id} style={[s.subCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+                  <View style={s.subCardRow}>
+                    <View style={[s.subIcon, { backgroundColor: colors.primary + '12' }]}>
+                      <Ionicons name="business" size={14} color={colors.primary} />
                     </View>
-                  ) : null}
+                    <Text style={[s.subCardTitle, { color: colors.text }]}>{bank.bankName}</Text>
+                  </View>
+                  <Text style={[s.subCardVal, { color: colors.text }]} selectable>{bank.iban}</Text>
+                  {bank.accountName && (
+                    <Text style={[s.subCardSub, { color: colors.subtext }]}>
+                      {bank.accountName}{bank.branch ? ` · ${bank.branch}` : ''}
+                    </Text>
+                  )}
                 </View>
-              ))
-            ) : (
-              <Text style={[styles.emptyText, { fontSize: calculateFontSize(13) }]}>
-                Kayıtlı iletişim kişisi yok
-              </Text>
-            )}
-          </View>
+              ))}
+            </View>
+          )}
+
+          {/* Contacts */}
+          {cari.contacts && cari.contacts.length > 0 && (
+            <View style={s.section}>
+              <Text style={[s.sectionTitle, { color: colors.subtext }]}>İletişim Kişileri</Text>
+              {cari.contacts.map(contact => (
+                <View key={contact.id} style={[s.subCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+                  <View style={s.subCardRow}>
+                    <View style={[s.subIcon, { backgroundColor: colors.primary + '12' }]}>
+                      <Ionicons name="person" size={14} color={colors.primary} />
+                    </View>
+                    <Text style={[s.subCardTitle, { color: colors.text }]}>{contact.name}</Text>
+                    {contact.title && (
+                      <View style={[s.titleBadge, { backgroundColor: colors.primary + '18' }]}>
+                        <Text style={[s.titleBadgeText, { color: colors.primary }]}>{contact.title}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={s.contactInfo}>
+                    <Ionicons name="call" size={12} color={colors.subtext} />
+                    <Text style={[s.contactText, { color: colors.subtext }]} selectable>{contact.phone}</Text>
+                  </View>
+                  {contact.email && (
+                    <View style={s.contactInfo}>
+                      <Ionicons name="mail" size={12} color={colors.subtext} />
+                      <Text style={[s.contactText, { color: colors.subtext }]} selectable>{contact.email}</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
         </ScrollView>
 
-        <View style={styles.footer}>
-          <Button title="Kapat" variant="primary" onPress={handleClose} style={styles.closeBtn} />
+        <View style={[s.footer, { borderTopColor: colors.divider, backgroundColor: colors.card }]}>
+          <Button title="Kapat" variant="primary" onPress={handleClose} fullWidth />
         </View>
       </Animated.View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    minHeight: '78%',
-    maxHeight: '92%',
+function SectionRow({ icon, label, value, selectable, last, colors }: {
+  icon: string; label: string; value: string; selectable?: boolean; last?: boolean; colors: any;
+}) {
+  return (
+    <View style={[s.sRow, !last && { borderBottomWidth: 1, borderBottomColor: colors.divider }]}>
+      <View style={[s.sRowIcon, { backgroundColor: colors.divider }]}>
+        <Ionicons name={icon as any} size={15} color={colors.subtext} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[s.sRowLabel, { color: colors.subtext }]}>{label}</Text>
+        <Text style={[s.sRowValue, { color: colors.text }]} selectable={selectable}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  modalWrap: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
+  modal: {
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    minHeight: '78%', maxHeight: '92%',
   },
   handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: Colors.subtext,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 16,
+    width: 36, height: 4,
+    borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 14,
   },
+
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    gap: 16,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 20, paddingBottom: 16, gap: 14,
   },
-  title: {
-    color: Colors.text,
-    fontWeight: '700',
-    flex: 1,
+  avatar: {
+    width: 46, height: 46, borderRadius: 15,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1,
   },
-  closeButton: {
-    backgroundColor: Colors.card,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollContent: {
-    flex: 1,
-  },
-  scrollContentContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  balanceCard: {
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  balanceLabel: {
-    color: Colors.subtext,
-    marginBottom: 4,
-  },
-  balanceValue: {
-    fontWeight: '800',
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionLabel: {
-    color: Colors.subtext,
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  sectionValue: {
-    color: Colors.text,
-    fontWeight: '500',
-    flex: 1,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  notes: {
-    color: Colors.text,
-    lineHeight: 22,
-  },
-  card: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-  },
-  cardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-    flexWrap: 'wrap',
-  },
-  cardTitle: {
-    color: Colors.text,
-    fontWeight: '600',
-    flex: 1,
-  },
-  cardValue: {
-    color: Colors.text,
-    marginLeft: 26,
-    marginBottom: 2,
-  },
-  cardSub: {
-    color: Colors.subtext,
-    marginLeft: 26,
-    marginTop: 2,
-  },
-  emptyText: {
-    color: Colors.subtext,
-    fontStyle: 'italic',
-  },
-  titleBadge: {
-    backgroundColor: Colors.primary + '30',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  titleBadgeText: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  footer: {
-    paddingHorizontal: Spacing.screenPadding,
-    paddingVertical: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    backgroundColor: Colors.card,
-  },
+  avatarText: { fontSize: 17, fontWeight: '800' },
+  title: { fontWeight: '700', flex: 1 },
   closeBtn: {
-    width: '100%',
+    width: 36, height: 36, borderRadius: 12,
+    justifyContent: 'center', alignItems: 'center',
   },
-  loadingContainer: {
-    padding: 20,
+
+  scrollInner: { paddingHorizontal: 20, paddingBottom: 20 },
+
+  balanceCard: {
+    borderRadius: 20, padding: 22,
+    alignItems: 'center', marginBottom: 16, overflow: 'hidden',
+    borderWidth: 1,
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+  balanceLabel: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  balanceVal: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+
+  infoCard: {
+    borderRadius: 20, overflow: 'hidden',
+    marginBottom: 16, borderWidth: 1,
   },
-  errorText: {
-    color: Colors.text,
-    fontSize: 16,
-    marginTop: 12,
+  sRow: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  sRowIcon: {
+    width: 32, height: 32, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
   },
+  sRowLabel: { fontSize: 10, fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  sRowValue: { fontSize: 15, fontWeight: '600' },
+
+  notesCard: {
+    borderRadius: 16, padding: 16,
+    marginBottom: 16, borderWidth: 1,
+  },
+  notesLabel: { fontSize: 11, fontWeight: '600', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  notesText: { fontSize: 14, lineHeight: 22 },
+
+  section: { marginBottom: 16 },
+  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10 },
+
+  subCard: {
+    borderRadius: 16, padding: 14,
+    marginBottom: 8, overflow: 'hidden',
+    borderWidth: 1,
+  },
+  subCardRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  subIcon: {
+    width: 28, height: 28, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  subCardTitle: { fontWeight: '600', fontSize: 14, flex: 1 },
+  subCardVal: { fontSize: 13, marginLeft: 36, marginBottom: 2 },
+  subCardSub: { fontSize: 12, marginLeft: 36 },
+
+  titleBadge: {
+    paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8,
+  },
+  titleBadgeText: { fontWeight: '600', fontSize: 10 },
+
+  contactInfo: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 36, marginBottom: 4 },
+  contactText: { fontSize: 13 },
+
+  footer: {
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderTopWidth: 1,
+  },
+
+  errorWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  errorText: { fontSize: 16, marginTop: 12 },
 });

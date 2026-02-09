@@ -4,52 +4,60 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Dimensions,
+  Pressable,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Colors } from '../../src/Constants/Colors';
 import { Spacing } from '../../src/Constants/Spacing';
 import { useProductDetail } from '../../src/Hooks/useCatalog';
 import { useResponsive } from '../../src/Hooks/UseResponsive';
+import { useTheme } from '../../src/Context/ThemeContext';
 import { Skeleton } from '../../src/Components/Ui/Skeleton';
 import { ErrorState } from '../../src/Components/Ui/ErrorState';
-import { Button } from '../../src/Components/Ui/Button';
-
-const CATALOG_GOLD = Colors.catalogGold;
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { lightImpact } from '../../src/Utils/haptics';
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { calculateFontSize } = useResponsive();
+  const { colors, isDark } = useTheme();
 
   const { data: product, isLoading, isError, refetch, isRefetching } = useProductDetail(id ?? null);
   const [imageError, setImageError] = useState(false);
 
-  const handleBack = useCallback(() => router.back(), [router]);
+  const handleBack = useCallback(() => { lightImpact(); router.back(); }, [router]);
   const showImage = product?.imageUrl && !imageError;
+  const GOLD = colors.catalogGold;
+
+  const Nav = () => (
+    <SafeAreaView edges={['top']} style={{ backgroundColor: colors.background }}>
+      <View style={[s.nav, { borderBottomColor: colors.divider }]}>
+        <Pressable onPress={handleBack} style={s.navBtn} hitSlop={8}>
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
+        </Pressable>
+        <Text style={[s.navTitle, { fontSize: calculateFontSize(17), color: colors.text }]} numberOfLines={1}>
+          {product?.name ?? 'Ürün'}
+        </Text>
+        <View style={s.navBtn} />
+      </View>
+    </SafeAreaView>
+  );
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
+      <View style={[s.container, { backgroundColor: colors.background }]}>
         <Stack.Screen options={{ headerShown: false }} />
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={28} color={Colors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { fontSize: calculateFontSize(18) }]}>Ürün</Text>
-          <View style={styles.backBtn} />
-        </View>
-        <View style={styles.skeletonImage} />
-        <View style={styles.skeletonContent}>
-          <Skeleton width="70%" height={24} style={{ marginBottom: 12 }} />
-          <Skeleton width="40%" height={18} style={{ marginBottom: 16 }} />
-          <Skeleton width="100%" height={60} />
+        <Nav />
+        <View style={{ padding: 20 }}>
+          <Skeleton width="100%" height={280} style={{ borderRadius: 24, marginBottom: 20 }} />
+          <Skeleton width="60%" height={22} style={{ marginBottom: 12 }} />
+          <Skeleton width="40%" height={16} style={{ marginBottom: 20 }} />
+          <Skeleton width="100%" height={100} style={{ borderRadius: 20 }} />
         </View>
       </View>
     );
@@ -57,257 +65,176 @@ export default function ProductDetailScreen() {
 
   if (isError || !product) {
     return (
-      <View style={styles.container}>
+      <View style={[s.container, { backgroundColor: colors.background }]}>
         <Stack.Screen options={{ headerShown: false }} />
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={28} color={Colors.text} />
-          </TouchableOpacity>
-        </View>
+        <Nav />
         <ErrorState message="Ürün bulunamadı" onRetry={() => refetch()} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[s.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
-
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backBtn} accessibilityLabel="Geri">
-          <Ionicons name="chevron-back" size={28} color={Colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { fontSize: calculateFontSize(18) }]} numberOfLines={1}>
-          {product.name}
-        </Text>
-        <View style={styles.backBtn} />
-      </View>
+      <Nav />
 
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        style={{ flex: 1 }}
+        contentContainerStyle={s.scroll}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={() => refetch()}
-            tintColor={CATALOG_GOLD}
-            colors={[CATALOG_GOLD]}
-          />
+          <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={GOLD} colors={[GOLD]} />
         }
       >
-        {/* Ürün görsel alanı - AKBEN görselleri */}
-        <View style={styles.imageSection}>
-          <View style={styles.imagePlaceholder}>
+        {/* Image */}
+        <View style={s.imgWrap}>
+          <View style={[s.imgBox, {
+            backgroundColor: colors.card, borderColor: colors.cardBorder,
+            ...Platform.select({
+              ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0.2 : 0.08, shadowRadius: 14 },
+              android: { elevation: 6 },
+            }),
+          }]}>
             {showImage ? (
               <Image
                 source={{ uri: product.imageUrl }}
-                style={styles.productImage}
+                style={s.img}
                 contentFit="contain"
                 onError={() => setImageError(true)}
               />
             ) : (
-              <Ionicons name="diamond-outline" size={64} color={CATALOG_GOLD + '99'} />
+              <View style={s.placeholder}>
+                <View style={[s.placeholderCircle, { backgroundColor: GOLD + '0A' }]}>
+                  <Ionicons name="diamond-outline" size={48} color={GOLD + '60'} />
+                </View>
+              </View>
             )}
           </View>
-          {product.featured ? (
-            <View style={styles.featuredBadge}>
-              <Ionicons name="star" size={14} color={Colors.background} />
-              <Text style={styles.featuredText}>Öne çıkan</Text>
+          {product.featured && (
+            <View style={[s.featBadge, {
+              backgroundColor: GOLD,
+              ...Platform.select({
+                ios: { shadowColor: GOLD, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 8 },
+                android: { elevation: 4 },
+              }),
+            }]}>
+              <Ionicons name="star" size={12} color={colors.background} />
+              <Text style={[s.featText, { color: colors.background }]}>Öne çıkan</Text>
             </View>
-          ) : null}
+          )}
         </View>
 
-        {/* Bilgi kartı */}
-        <View style={styles.card}>
-          {product.category ? (
-            <View style={styles.metaRow}>
-              <Text style={[styles.metaLabel, { fontSize: calculateFontSize(12) }]}>Kategori</Text>
-              <View style={styles.variantPill}>
-                <Text style={[styles.variantText, { fontSize: calculateFontSize(13) }]}>
-                  {product.category.name}
-                </Text>
+        {/* Info card */}
+        <View style={[s.card, {
+          backgroundColor: colors.card, borderColor: colors.cardBorder,
+          ...Platform.select({
+            ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0.15 : 0.06, shadowRadius: 10 },
+            android: { elevation: 4 },
+          }),
+        }]}>
+          {product.category && (
+            <InfoItem label="Kategori" colors={colors}>
+              <View style={[s.pill, { backgroundColor: colors.divider }]}>
+                <Text style={[s.pillText, { color: colors.text }]}>{product.category.name}</Text>
               </View>
-            </View>
-          ) : null}
+            </InfoItem>
+          )}
 
-          {product.variant ? (
-            <View style={styles.metaRow}>
-              <Text style={[styles.metaLabel, { fontSize: calculateFontSize(12) }]}>Ayar / Malzeme</Text>
-              <View style={[styles.variantPill, styles.variantPillGold]}>
-                <Text style={[styles.variantTextGold, { fontSize: calculateFontSize(13) }]}>
-                  {product.variant.name}
-                </Text>
+          {product.variant && (
+            <InfoItem label="Ayar / Malzeme" colors={colors}>
+              <View style={[s.pill, s.pillGold, { backgroundColor: GOLD + '14', borderColor: GOLD + '20' }]}>
+                <Text style={[s.pillGoldText, { color: GOLD }]}>{product.variant.name}</Text>
               </View>
-            </View>
-          ) : null}
+            </InfoItem>
+          )}
 
-          {product.brand ? (
-            <View style={styles.metaRow}>
-              <Text style={[styles.metaLabel, { fontSize: calculateFontSize(12) }]}>Marka</Text>
-              <Text style={[styles.metaValue, { fontSize: calculateFontSize(15) }]}>
-                {product.brand.name}
-              </Text>
-            </View>
-          ) : null}
+          {product.brand && (
+            <InfoItem label="Marka" colors={colors}>
+              <Text style={[s.infoVal, { color: colors.text }]}>{product.brand.name}</Text>
+            </InfoItem>
+          )}
 
-          {product.description ? (
-            <View style={styles.descSection}>
-              <Text style={[styles.descLabel, { fontSize: calculateFontSize(12) }]}>Açıklama</Text>
-              <Text style={[styles.desc, { fontSize: calculateFontSize(15) }]}>
-                {product.description}
-              </Text>
+          {product.description && (
+            <View style={[s.descWrap, { borderTopColor: colors.divider }]}>
+              <Text style={[s.descLabel, { color: colors.subtext }]}>Açıklama</Text>
+              <Text style={[s.descText, { color: colors.text }]}>{product.description}</Text>
             </View>
-          ) : null}
-        </View>
-
-        <View style={styles.ctaWrap}>
-          <Button title="Sipariş / Teklif" variant="primary" onPress={() => {}} style={styles.cta} />
+          )}
         </View>
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingTop: 56,
-    paddingBottom: 12,
+function InfoItem({ label, children, colors }: { label: string; children: React.ReactNode; colors: any }) {
+  return (
+    <View style={s.infoItem}>
+      <Text style={[s.infoLabel, { color: colors.subtext }]}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  container: { flex: 1 },
+
+  nav: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
-  backBtn: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+  navBtn: {
+    width: 44, height: 44,
+    alignItems: 'center', justifyContent: 'center',
+    borderRadius: 14,
   },
-  headerTitle: {
-    color: Colors.text,
-    fontWeight: '700',
-    flex: 1,
-    textAlign: 'center',
+  navTitle: {
+    flex: 1, textAlign: 'center',
+    fontWeight: '600', fontSize: 17,
   },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  imageSection: {
-    marginTop: 24,
-    marginHorizontal: Spacing.screenPadding,
-    position: 'relative',
-  },
-  imagePlaceholder: {
+
+  scroll: { padding: 20, paddingBottom: 60 },
+
+  imgWrap: { position: 'relative', marginBottom: 20 },
+  imgBox: {
     aspectRatio: 1,
-    backgroundColor: Colors.card,
     borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
     overflow: 'hidden',
-  },
-  productImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 24,
-  },
-  featuredBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: CATALOG_GOLD,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
-  },
-  featuredText: {
-    color: Colors.background,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  card: {
-    marginHorizontal: Spacing.screenPadding,
-    marginTop: 24,
-    backgroundColor: Colors.card,
-    borderRadius: 24,
-    padding: 20,
     borderWidth: 1,
-    borderColor: Colors.border,
   },
-  metaRow: {
-    marginBottom: 14,
+  img: { width: '100%', height: '100%' },
+  placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  placeholderCircle: {
+    width: 80, height: 80, borderRadius: 24,
+    alignItems: 'center', justifyContent: 'center',
   },
-  metaLabel: {
-    color: Colors.subtext,
-    marginBottom: 6,
+  featBadge: {
+    position: 'absolute', top: 14, right: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12,
   },
-  metaValue: {
-    color: Colors.text,
-    fontWeight: '600',
+  featText: { fontWeight: '700', fontSize: 11 },
+
+  card: {
+    borderRadius: 22, padding: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
   },
-  variantPill: {
+  infoItem: { marginBottom: 16 },
+  infoLabel: { fontSize: 12, fontWeight: '500', marginBottom: 6 },
+  infoVal: { fontSize: 15, fontWeight: '600' },
+  pill: {
     alignSelf: 'flex-start',
-    backgroundColor: Colors.background,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10,
   },
-  variantPillGold: {
-    backgroundColor: CATALOG_GOLD + '22',
-  },
-  variantText: {
-    color: Colors.text,
-    fontWeight: '600',
-  },
-  variantTextGold: {
-    color: CATALOG_GOLD,
-    fontWeight: '700',
-  },
-  descSection: {
-    marginTop: 16,
-    paddingTop: 16,
+  pillText: { fontSize: 13, fontWeight: '600' },
+  pillGold: { borderWidth: 1 },
+  pillGoldText: { fontSize: 13, fontWeight: '700' },
+
+  descWrap: {
+    marginTop: 4, paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
   },
-  descLabel: {
-    color: Colors.subtext,
-    marginBottom: 8,
-  },
-  desc: {
-    color: Colors.text,
-    lineHeight: 22,
-  },
-  ctaWrap: {
-    marginTop: 28,
-    marginHorizontal: Spacing.screenPadding,
-  },
-  cta: {
-    backgroundColor: CATALOG_GOLD,
-  },
-  skeletonImage: {
-    marginHorizontal: Spacing.screenPadding,
-    marginTop: 24,
-    aspectRatio: 1,
-    borderRadius: 24,
-    backgroundColor: Colors.card,
-  },
-  skeletonContent: {
-    marginHorizontal: Spacing.screenPadding,
-    marginTop: 24,
-    padding: 20,
-  },
+  descLabel: { fontSize: 12, fontWeight: '500', marginBottom: 8 },
+  descText: { fontSize: 15, lineHeight: 23 },
 });

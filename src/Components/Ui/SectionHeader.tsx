@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors } from '../../Constants/Colors';
 import { Spacing } from '../../Constants/Spacing';
 import { useResponsive } from '../../Hooks/UseResponsive';
+import { useTheme } from '../../Context/ThemeContext';
 
 interface Props {
   title: string;
@@ -12,10 +12,12 @@ interface Props {
 
 export const SectionHeader = ({ title, showLine = true }: Props) => {
   const { calculateFontSize } = useResponsive();
+  const { colors } = useTheme();
+
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.title, { fontSize: calculateFontSize(14) }]}>{title}</Text>
-      {showLine && <View style={styles.line} />}
+      <Text style={[styles.title, { fontSize: calculateFontSize(14), color: colors.subtext }]}>{title}</Text>
+      {showLine && <View style={[styles.line, { backgroundColor: colors.primary }]} />}
     </View>
   );
 };
@@ -26,7 +28,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
   title: {
-    color: Colors.subtext,
     fontWeight: '600',
     letterSpacing: 0.6,
   },
@@ -34,7 +35,6 @@ const styles = StyleSheet.create({
     width: 24,
     height: 3,
     borderRadius: 2,
-    backgroundColor: Colors.primary,
     marginTop: 6,
   },
 });

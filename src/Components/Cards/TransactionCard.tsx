@@ -1,131 +1,121 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../Constants/Colors';
-import { Spacing } from '../../Constants/Spacing';
 import { Transaction, transactionTypeLabel } from '../../Types/transaction';
 import { useResponsive } from '../../Hooks/UseResponsive';
+import { useTheme } from '../../Context/ThemeContext';
+import { lightImpact } from '../../Utils/haptics';
+
+const AnimPressable = Animated.createAnimatedComponent(Pressable);
 
 interface Props {
   transaction: Transaction;
   onPress: () => void;
+  index?: number;
 }
 
-export const TransactionCard = ({ transaction, onPress }: Props) => {
+export const TransactionCard = ({ transaction, onPress, index = 0 }: Props) => {
   const { calculateFontSize } = useResponsive();
+  const { colors, isDark } = useTheme();
+  const scale = useSharedValue(1);
+  const scaleStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const typeColor =
-    transaction.type === 'SALE'
-      ? Colors.success
-      : transaction.type === 'PURCHASE'
-        ? Colors.primary
-        : Colors.warning;
-
-  const typeIcon =
-    transaction.type === 'SALE'
-      ? 'trending-up'
-      : transaction.type === 'PURCHASE'
-        ? 'cart'
-        : 'hammer';
-
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('tr-TR', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+  const TYPE_MAP: Record<string, { color: string; icon: string; bg: string }> = {
+    SALE: { color: colors.success, icon: 'trending-up', bg: colors.success + '12' },
+    PURCHASE: { color: '#60A5FA', icon: 'cart', bg: '#60A5FA12' },
+    LABOR: { color: colors.warning, icon: 'construct', bg: colors.warning + '12' },
   };
 
+  const t = TYPE_MAP[transaction.type] ?? TYPE_MAP.LABOR;
+
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+
   return (
-    <TouchableOpacity
-      style={[styles.card, { borderLeftColor: typeColor }]}
+    <AnimPressable
+      entering={FadeInDown.duration(400).delay(index * 50).springify()}
+      style={[s.card, {
+        backgroundColor: colors.card,
+        borderColor: colors.cardBorder,
+        ...Platform.select({
+          ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0.15 : 0.06, shadowRadius: 10 },
+          android: { elevation: 4 },
+        }),
+      }, scaleStyle]}
+      onPressIn={() => { scale.value = withSpring(0.97, { damping: 15, stiffness: 300 }); lightImpact(); }}
+      onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
       onPress={onPress}
-      activeOpacity={0.82}
       accessibilityRole="button"
     >
-      <View style={styles.header}>
-        <View style={[styles.typeBadge, { backgroundColor: typeColor + '22', borderColor: typeColor + '44' }]}>
-          <Ionicons name={typeIcon as any} size={14} color={typeColor} />
-          <Text style={[styles.typeText, { color: typeColor, fontSize: calculateFontSize(12) }]}>
-            {transactionTypeLabel[transaction.type]}
-          </Text>
+      <View style={s.row}>
+        <View style={[s.iconBox, { backgroundColor: t.bg, borderColor: t.color + '20' }]}>
+          <Ionicons name={t.icon as any} size={18} color={t.color} />
         </View>
-        <Text style={[styles.gram, { fontSize: calculateFontSize(18) }]}>
-          {transaction.gram.toLocaleString('tr-TR')} gr
-        </Text>
-      </View>
 
-      <Text style={[styles.description, { fontSize: calculateFontSize(14) }]} numberOfLines={2}>
-        {transaction.description}
-      </Text>
-
-      <View style={styles.footer}>
-        {transaction.customerName ? (
-          <View style={styles.infoRow}>
-            <Ionicons name="person-outline" size={14} color={Colors.subtext} />
-            <Text style={[styles.infoText, { fontSize: calculateFontSize(12) }]}>
-              {transaction.customerName}
-            </Text>
+        <View style={s.info}>
+          <View style={s.topRow}>
+            <View style={[s.typePill, { backgroundColor: t.color + '10', borderColor: t.color + '1A' }]}>
+              <Text style={[s.typeText, { color: t.color }]}>
+                {transactionTypeLabel[transaction.type]}
+              </Text>
+            </View>
+            <Text style={[s.date, { color: colors.subtext }]}>{formatDate(transaction.date)}</Text>
           </View>
-        ) : null}
-        <Text style={[styles.date, { fontSize: calculateFontSize(12) }]}>
-          {formatDate(transaction.date)}
-        </Text>
+          <Text style={[s.desc, { fontSize: calculateFontSize(14), color: colors.text }]} numberOfLines={1}>
+            {transaction.description}
+          </Text>
+          {transaction.customerName ? (
+            <View style={s.customerRow}>
+              <Ionicons name="person" size={10} color={colors.subtext} />
+              <Text style={[s.customer, { color: colors.subtext }]}>{transaction.customerName}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={s.valBox}>
+          <Text style={[s.gram, { color: t.color }]}>
+            {transaction.gram.toLocaleString('tr-TR')}
+          </Text>
+          <Text style={[s.gramUnit, { color: t.color }]}>gr</Text>
+        </View>
       </View>
-    </TouchableOpacity>
+
+      <View style={[s.accentBar, { backgroundColor: t.color }]} />
+    </AnimPressable>
   );
 };
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
-    borderRadius: Spacing.radiusXl,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderLeftWidth: 4,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    borderRadius: 20,
+    padding: 14,
     marginBottom: 10,
-  },
-  typeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    gap: 6,
+    overflow: 'hidden',
     borderWidth: 1,
   },
-  typeText: {
-    fontWeight: '600',
+  accentBar: {
+    position: 'absolute', left: 0, top: 14, bottom: 14,
+    width: 3, borderTopRightRadius: 3, borderBottomRightRadius: 3, opacity: 0.5,
   },
-  gram: {
-    color: Colors.text,
-    fontWeight: '700',
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  iconBox: {
+    width: 44, height: 44, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1,
   },
-  description: {
-    color: Colors.subtext,
-    marginBottom: 10,
+  info: { flex: 1, gap: 4 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  typePill: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+    borderWidth: 1,
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  infoText: {
-    color: Colors.subtext,
-  },
-  date: {
-    color: Colors.subtext,
-  },
+  typeText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.2 },
+  date: { fontSize: 11, fontWeight: '500' },
+  desc: { fontWeight: '600' },
+  customerRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  customer: { fontSize: 11, fontWeight: '500' },
+  valBox: { alignItems: 'flex-end' },
+  gram: { fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
+  gramUnit: { fontSize: 11, fontWeight: '600', opacity: 0.7 },
 });

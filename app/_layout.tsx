@@ -1,8 +1,10 @@
 import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { Colors } from "../src/Constants/Colors";
 import { AuthProvider } from "../src/Context/AuthContext";
+import { ThemeProvider, useTheme } from "../src/Context/ThemeContext";
+import { ErrorBoundary } from "../src/Components/Ui/ErrorBoundary";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -14,39 +16,50 @@ const queryClient = new QueryClient({
   },
 });
 
+function InnerLayout() {
+  const { colors, isDark } = useTheme();
+
+  return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerTitleStyle: { fontWeight: 'bold', color: colors.text },
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="machines" options={{ headerShown: false }} />
+        <Stack.Screen name="catalog" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="orders"
+          options={{
+            headerShown: false,
+            presentation: 'transparentModal',
+            animation: 'fade',
+          }}
+        />
+      </Stack>
+    </>
+  );
+}
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <Stack
-            screenOptions={{
-            headerStyle: {
-              backgroundColor: Colors.background,
-            },
-            headerTintColor: Colors.text,
-            headerTitleStyle: {
-              fontWeight: 'bold',
-              color: Colors.text,
-            },
-            }}
-          >
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="machines" options={{ headerShown: false }} />
-            <Stack.Screen name="catalog" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="orders"
-              options={{
-                headerShown: false,
-                presentation: 'transparentModal',
-                animation: 'fade',
-              }}
-            />
-          </Stack>
-        </AuthProvider>
-      </QueryClientProvider>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <AuthProvider>
+              <InnerLayout />
+            </AuthProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }

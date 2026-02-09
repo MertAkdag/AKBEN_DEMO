@@ -1,653 +1,371 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, RefreshControl, Dimensions, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  RefreshControl,
+  Dimensions,
+  Platform,
+  Pressable,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScrollView } from 'react-native-gesture-handler';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Svg, { Path, Line, Text as SvgText, Circle, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
-import { Colors } from '../../src/Constants/Colors';
-import { Spacing } from '../../src/Constants/Spacing';
+import { ScrollView, Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  FadeIn,
+  FadeInDown,
+} from 'react-native-reanimated';
+import Svg, {
+  Path,
+  Line,
+  Text as SvgText,
+  Circle,
+  Defs,
+  LinearGradient,
+  Stop,
+} from 'react-native-svg';
 import { ScreenHeader } from '../../src/Shared/Header';
 import { StatCardSkeleton, ChartSkeleton } from '../../src/Components/Ui/Skeleton';
 import { ErrorState } from '../../src/Components/Ui/ErrorState';
 import { dashboardService, DashboardSummary } from '../../src/Api/dashboardService';
 import { goldPriceService } from '../../src/Api/goldPriceService';
 import { useResponsive } from '../../src/Hooks/UseResponsive';
+import { useTheme } from '../../src/Context/ThemeContext';
+import { lightImpact } from '../../src/Utils/haptics';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import type { ThemeColors } from '../../src/Constants/Theme';
 
-/** Grafik noktaları weeklyGramData.profitGram üzerinden hesaplanacak */
+/* ─── Animated SVG ─── */
+const AnimCircle = Animated.createAnimatedComponent(Circle);
+const AnimLine = Animated.createAnimatedComponent(Line);
+
+/* ─── Layout ─── */
+const SW = Dimensions.get('window').width;
+const PAD = 20;
+const CPAD = 20;
+const CHART_W = SW - PAD * 2 - CPAD * 2;
+const CHART_H = 200;
+const CP = { top: 24, right: 8, bottom: 28, left: 8 };
+const GW = CHART_W - CP.left - CP.right;
+const GH = CHART_H - CP.top - CP.bottom;
+const TAB_H = 100;
+const SPRING = { damping: 20, stiffness: 180, mass: 0.7 };
+
+/* ─── Glass Card wrapper ─── */
+function GlassCard({ children, style, delay = 0, colors, isDark }: {
+  children: React.ReactNode; style?: any; delay?: number; colors: ThemeColors; isDark: boolean;
+}) {
+  return (
+    <Animated.View entering={FadeInDown.duration(500).delay(delay).springify()} style={[
+      styles.glass,
+      {
+        backgroundColor: colors.card,
+        borderColor: colors.cardBorder,
+        ...Platform.select({
+          ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0.18 : 0.06, shadowRadius: 12 },
+          android: { elevation: 6 },
+        }),
+      },
+      style,
+    ]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/* ─── Stat card ─── */
+function StatItem({ label, value, icon, color, idx, colors, isDark }: {
+  label: string; value: string | number; icon: string; color: string; idx: number;
+  colors: ThemeColors; isDark: boolean;
+}) {
+  return (
+    <GlassCard style={styles.statCard} delay={idx * 60} colors={colors} isDark={isDark}>
+      <View style={[styles.statIconBox, { backgroundColor: color + '12' }]}>
+        <Ionicons name={icon as any} size={18} color={color} />
+      </View>
+      <Text style={[styles.statVal, { color: colors.text }]} numberOfLines={1}>
+        {typeof value === 'number' ? value.toLocaleString('tr-TR') : value}
+      </Text>
+      <Text style={[styles.statLabel, { color: colors.subtext }]}>{label}</Text>
+      <View style={[styles.cornerDot, { backgroundColor: color }]} />
+    </GlassCard>
+  );
+}
 
 export default function DashboardScreen() {
-  const { calculateFontSize, calculateHeight } = useResponsive();
+  const { calculateFontSize } = useResponsive();
+  const { colors, isDark } = useTheme();
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selIdx, setSelIdx] = useState(0);
   const [goldPrice, setGoldPrice] = useState<number | null>(null);
-  const [goldPriceIsFallback, setGoldPriceIsFallback] = useState(false);
+  const [goldFallback, setGoldFallback] = useState(false);
 
   const fetchData = useCallback(async () => {
-    try {
-      setError(null);
-      const response = await dashboardService.getSummary();
-      setData(response);
-    } catch (err: any) {
-      console.log('Dashboard fetch error:', err);
-      setError(err.message || 'Veriler yüklenirken bir hata oluştu');
-    } finally {
-      setIsLoading(false);
-      setRefreshing(false);
-    }
+    try { setError(null); setData(await dashboardService.getSummary()); }
+    catch (e: any) { setError(e.message || 'Veriler yüklenemedi'); }
+    finally { setIsLoading(false); setRefreshing(false); }
+  }, []);
+  const fetchGold = useCallback(async () => {
+    const r = await goldPriceService.getGramGoldSellPrice();
+    setGoldPrice(r.price); setGoldFallback(r.isFallback);
   }, []);
 
-  const fetchGoldPrice = useCallback(async () => {
-    const result = await goldPriceService.getGramGoldSellPrice();
-    setGoldPrice(result.price);
-    setGoldPriceIsFallback(result.isFallback);
-  }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchGold(); }, [fetchGold]);
+  const onRefresh = useCallback(() => { setRefreshing(true); fetchData(); fetchGold(); }, [fetchData, fetchGold]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    fetchGoldPrice();
-  }, [fetchGoldPrice]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchData();
-    fetchGoldPrice();
-  }, [fetchData, fetchGoldPrice]);
-
-  const statsCards = data ? [
-    { title: 'Toplam Satış (gr)', value: data.totalSalesGram, icon: 'trending-up-outline', color: Colors.success },
-    { title: 'Toplam Alış (gr)', value: data.totalPurchaseGram, icon: 'cart-outline', color: Colors.primary },
-    { title: 'Toplam Kar (gr)', value: data.totalProfitGram, icon: 'wallet-outline', color: Colors.primary },
-    { title: 'Toplam İşçilik (gr)', value: data.totalLaborGram, icon: 'hammer-outline', color: Colors.primary },
+  const stats = data ? [
+    { label: 'Satış', val: data.totalSalesGram, icon: 'arrow-up-circle', color: colors.success },
+    { label: 'Alış', val: data.totalPurchaseGram, icon: 'arrow-down-circle', color: '#60A5FA' },
+    { label: 'Kar', val: data.totalProfitGram, icon: 'trending-up', color: '#A78BFA' },
+    { label: 'İşçilik', val: data.totalLaborGram, icon: 'construct', color: colors.warning },
   ] : [];
 
-  const screenWidth = Dimensions.get('window').width;
-  const heroHeight = 100;
-  const chartWidth = screenWidth - 80;
-  const chartHeight = 220;
-  const chartPadding = { top: 40, right: 20, bottom: 30, left: 20 };
-  const graphWidth = chartWidth - chartPadding.left - chartPadding.right;
-  const graphHeight = chartHeight - chartPadding.top - chartPadding.bottom;
+  const weekly = data?.weeklyGramData ?? [];
+  const vals = weekly.map(d => d.profitGram);
+  const mn = Math.min(...vals, 0), mx = Math.max(...vals, 1), rng = mx - mn || 1;
 
-  const weeklyData = data?.weeklyGramData ?? [];
-  const chartValues = weeklyData.map((d) => d.profitGram);
-  const minChartVal = Math.min(...chartValues, 0);
-  const maxChartVal = Math.max(...chartValues, 1);
-  const range = maxChartVal - minChartVal || 1;
-  const svgPoints = useMemo(() => {
-    return weeklyData.map((d, i) => ({
-      x: chartPadding.left + (i / (weeklyData.length - 1 || 1)) * graphWidth,
-      y: chartPadding.top + graphHeight - ((d.profitGram - minChartVal) / range) * graphHeight,
-      value: d.profitGram,
-      label: d.label,
-    }));
-  }, [graphWidth, graphHeight, weeklyData, minChartVal, maxChartVal, range]);
+  const pts = useMemo(() =>
+    weekly.map((d, i) => ({
+      x: CP.left + (i / (weekly.length - 1 || 1)) * GW,
+      y: CP.top + GH - ((d.profitGram - mn) / rng) * GH,
+      v: d.profitGram, l: d.label,
+    })), [weekly, mn, rng]);
 
-  const findClosestPoint = useCallback((touchX: number) => {
-    if (svgPoints.length === 0) return 0;
-    let closestIndex = 0;
-    let minDistance = Infinity;
-    svgPoints.forEach((point, index) => {
-      const distance = Math.abs(point.x - touchX);
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestIndex = index;
-      }
+  /* ─── Animated dot ─── */
+  const dotX = useSharedValue(pts[0]?.x ?? 0);
+  const dotY = useSharedValue(pts[0]?.y ?? 0);
+  const valOp = useSharedValue(1);
+
+  useEffect(() => {
+    if (!pts.length) return;
+    const si = Math.min(selIdx, pts.length - 1);
+    dotX.value = withSpring(pts[si].x, SPRING);
+    dotY.value = withSpring(pts[si].y, SPRING);
+    valOp.value = withTiming(0.3, { duration: 60 }, () => {
+      valOp.value = withTiming(1, { duration: 200 });
     });
-    return closestIndex;
-  }, [svgPoints]);
+  }, [selIdx, pts]);
 
-  const updateSelection = useCallback(
-    (x: number) => {
-      setSelectedIndex(findClosestPoint(x));
-    },
-    [findClosestPoint]
-  );
+  const glowP = useAnimatedProps(() => ({ cx: dotX.value, cy: dotY.value }));
+  const dotOP = useAnimatedProps(() => ({ cx: dotX.value, cy: dotY.value }));
+  const dotIP = useAnimatedProps(() => ({ cx: dotX.value, cy: dotY.value }));
+  const vLP = useAnimatedProps(() => ({ x1: dotX.value, x2: dotX.value }));
+  const valA = useAnimatedStyle(() => ({ opacity: valOp.value }));
 
-  const panGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .minDistance(0)
-        .runOnJS(true)
-        .onStart((e) => updateSelection(e.x))
-        .onUpdate((e) => updateSelection(e.x)),
-    [updateSelection]
-  );
+  const closest = useCallback((tx: number) => {
+    let idx = 0, best = Infinity;
+    pts.forEach((p, i) => { const d = Math.abs(p.x - tx); if (d < best) { best = d; idx = i; } });
+    return idx;
+  }, [pts]);
 
-  const renderWeeklyChart = () => {
-    if (svgPoints.length === 0) return null;
-    const pathD = svgPoints.reduce((acc, point, index) => {
-      if (index === 0) return `M ${point.x} ${point.y}`;
-      const prev = svgPoints[index - 1];
-      const cpX1 = prev.x + (point.x - prev.x) / 3;
-      const cpX2 = prev.x + (2 * (point.x - prev.x)) / 3;
-      return `${acc} C ${cpX1} ${prev.y}, ${cpX2} ${point.y}, ${point.x} ${point.y}`;
+  const prevIdx = useSharedValue(0);
+  const pan = useMemo(() =>
+    Gesture.Pan().minDistance(0).runOnJS(true)
+      .onStart(e => { const i = closest(e.x); if (i !== selIdx) lightImpact(); setSelIdx(i); })
+      .onUpdate(e => { const i = closest(e.x); if (i !== selIdx) lightImpact(); setSelIdx(i); }),
+    [closest, selIdx]);
+
+  /* ─── Chart ─── */
+  const renderChart = () => {
+    if (!pts.length) return null;
+    const path = pts.reduce((a, p, i) => {
+      if (!i) return `M ${p.x} ${p.y}`;
+      const pr = pts[i - 1];
+      return `${a} C ${pr.x + (p.x - pr.x) * 0.4} ${pr.y}, ${pr.x + (p.x - pr.x) * 0.6} ${p.y}, ${p.x} ${p.y}`;
     }, '');
-
-    const safeIndex = Math.min(selectedIndex, svgPoints.length - 1);
-    const selectedPoint = svgPoints[safeIndex];
+    const si = Math.min(selIdx, pts.length - 1);
+    const sp = pts[si];
 
     return (
-      <View style={styles.chartCard}>
-        <View style={styles.chartHeader}>
-          <View>
-            <Text style={styles.chartSubtitle}>Haftalık özet</Text>
-            <Text style={styles.chartMainTitle}>Kar (gr)</Text>
+      <GlassCard style={{ padding: CPAD }} delay={280} colors={colors} isDark={isDark}>
+        <View style={styles.chartHead}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.chartSub, { color: colors.subtext }]}>Haftalık Kar</Text>
+            <Animated.View style={[{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }, valA]}>
+              <Text style={[styles.chartBig, { color: colors.text }]}>
+                {sp.v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
+              <Text style={[styles.chartUnit, { color: colors.subtext }]}>gr</Text>
+            </Animated.View>
           </View>
-          <View style={styles.chartValueBadge}>
-            <Text style={styles.chartValue}>{selectedPoint.value.toLocaleString('tr-TR')} gr</Text>
-          </View>
+          <Animated.View style={[styles.dayPill, { backgroundColor: colors.primary + '14', borderColor: colors.primary + '20' }, valA]}>
+            <Text style={[styles.dayPillText, { color: colors.primary }]}>{sp.l}</Text>
+          </Animated.View>
         </View>
 
-        <GestureDetector gesture={panGesture}>
-          <View
-            style={[styles.chartTouchArea, { width: chartWidth, height: chartHeight }]}
-            collapsable={false}
-          >
-            <Svg width={chartWidth} height={chartHeight}>
-            <Defs>
-              <LinearGradient id="gradient" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={Colors.primary} stopOpacity="0.5" />
-                <Stop offset="1" stopColor={Colors.primary} stopOpacity="0" />
-              </LinearGradient>
-            </Defs>
-
-            {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
-               const x = chartPadding.left + ratio * graphWidth;
-               return (
-                 <Line
-                   key={i}
-                   x1={x}
-                   y1={chartPadding.top}
-                   x2={x}
-                   y2={chartPadding.top + graphHeight}
-                   stroke={Colors.border}
-                   strokeWidth={1}
-                   strokeDasharray="5, 5"
-                 />
-               );
-            })}
-            
-            <Path
-              d={pathD}
-              stroke={Colors.primary}
-              strokeWidth={3}
-              fill="none"
-            />
-
-            <Path
-              d={`${pathD} L ${svgPoints[svgPoints.length-1].x} ${chartPadding.top + graphHeight} L ${svgPoints[0].x} ${chartPadding.top + graphHeight} Z`}
-              fill="url(#gradient)"
-            />
-
-            <Line
-              x1={selectedPoint.x}
-              y1={chartPadding.top}
-              x2={selectedPoint.x}
-              y2={chartPadding.top + graphHeight}
-              stroke={Colors.text}
-              strokeWidth={1}
-              strokeDasharray="5, 5"
-              opacity={0.5}
-            />
-            
-            <Circle
-              cx={selectedPoint.x}
-              cy={selectedPoint.y}
-              r={6}
-              fill={Colors.background}
-              stroke={Colors.text}
-              strokeWidth={3}
-            />
-
-            <SvgText
-              x={selectedPoint.x}
-              y={selectedPoint.y - 15}
-              fill={Colors.text}
-              fontSize="12"
-              fontWeight="bold"
-              textAnchor="middle"
-            >
-              {selectedPoint.value}
-            </SvgText>
-
-            {svgPoints.map((p, i) => (
-              <SvgText
-                key={i}
-                x={p.x}
-                y={chartHeight - 10}
-                fill={i === safeIndex ? Colors.primary : Colors.subtext}
-                fontSize="10"
-                textAnchor="middle"
-                fontWeight={i === safeIndex ? '600' : '400'}
-              >
-                {p.label}
-              </SvgText>
-            ))}
-
+        <GestureDetector gesture={pan}>
+          <View style={{ width: CHART_W, height: CHART_H }} collapsable={false}>
+            <Svg width={CHART_W} height={CHART_H}>
+              <Defs>
+                <LinearGradient id="af" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor={colors.primary} stopOpacity="0.2" />
+                  <Stop offset="0.6" stopColor={colors.primary} stopOpacity="0.03" />
+                  <Stop offset="1" stopColor={colors.primary} stopOpacity="0" />
+                </LinearGradient>
+                <LinearGradient id="lg" x1="0" y1="0" x2="1" y2="0">
+                  <Stop offset="0" stopColor={colors.primary} stopOpacity="0.35" />
+                  <Stop offset="0.4" stopColor={colors.primary} stopOpacity="1" />
+                  <Stop offset="0.6" stopColor={colors.primary} stopOpacity="1" />
+                  <Stop offset="1" stopColor={colors.primary} stopOpacity="0.35" />
+                </LinearGradient>
+              </Defs>
+              {[0.25, 0.5, 0.75].map((r, i) => (
+                <Line key={i} x1={CP.left} y1={CP.top + r * GH} x2={CP.left + GW} y2={CP.top + r * GH}
+                  stroke={colors.text} strokeWidth={0.5} opacity={0.04} />
+              ))}
+              <Path d={`${path} L ${pts[pts.length - 1].x} ${CP.top + GH} L ${pts[0].x} ${CP.top + GH} Z`} fill="url(#af)" />
+              <Path d={path} stroke="url(#lg)" strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              <AnimLine animatedProps={vLP} y1={CP.top} y2={CP.top + GH} stroke={colors.primary} strokeWidth={0.6} opacity={0.12} strokeDasharray="3,3" />
+              <AnimCircle animatedProps={glowP} r={18} fill={colors.primary} opacity={0.06} />
+              <AnimCircle animatedProps={glowP} r={10} fill={colors.primary} opacity={0.1} />
+              <AnimCircle animatedProps={dotOP} r={5.5} fill={colors.primary} />
+              <AnimCircle animatedProps={dotIP} r={2.5} fill={colors.card} />
+              {pts.map((p, i) => (
+                <SvgText key={i} x={p.x} y={CHART_H - 6}
+                  fill={i === si ? colors.primary : colors.subtext}
+                  fontSize="10" textAnchor="middle" fontWeight={i === si ? '700' : '400'}
+                  opacity={i === si ? 1 : 0.4}>
+                  {p.l}
+                </SvgText>
+              ))}
             </Svg>
           </View>
         </GestureDetector>
-      </View>
+      </GlassCard>
     );
   };
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <ScreenHeader title="Özet" subtitle="Kuyumcu gram özeti" />
-          <View style={styles.statsGrid}>
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-          </View>
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <ScreenHeader title="Özet" subtitle="Yükleniyor..." />
+          <View style={styles.statsGrid}>{[1, 2, 3, 4].map(k => <StatCardSkeleton key={k} />)}</View>
           <ChartSkeleton />
         </ScrollView>
       </SafeAreaView>
     );
   }
+  if (error) return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+      <ErrorState message={error} onRetry={fetchData} />
+    </SafeAreaView>
+  );
 
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <ErrorState message={error} onRetry={fetchData} />
-      </SafeAreaView>
-    );
-  }
-
-  const welcomeDate = new Date().toLocaleDateString('tr-TR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
+  const today = new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={Colors.primary}
-            colors={[Colors.primary]}
-          />
-        }
-      >
-        <ScreenHeader title="Özet" subtitle="Gram bazlı satış, alış ve kar" />
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}>
+        <ScreenHeader title="Özet" subtitle={today} />
 
-        {/* Hero */}
-        <View style={[styles.hero, { height: calculateHeight(heroHeight) }]}>
-          <Svg style={StyleSheet.absoluteFill} width={screenWidth} height={calculateHeight(heroHeight)}>
-            <Defs>
-              <LinearGradient id="heroGrad" x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0" stopColor={Colors.primary} stopOpacity="0.08" />
-                <Stop offset="0.5" stopColor={Colors.card} />
-                <Stop offset="1" stopColor={Colors.primary} stopOpacity="0.04" />
-              </LinearGradient>
-            </Defs>
-            <Rect x="0" y="0" width={screenWidth} height={calculateHeight(heroHeight)} fill="url(#heroGrad)" />
-          </Svg>
-          <View style={styles.heroAccent} />
-          <View style={styles.heroIconWrap}>
-            <Ionicons name="calendar" size={24} color={Colors.primary} />
-          </View>
-          <View style={styles.heroTextWrap}>
-            <Text style={styles.heroLabel}>Bugünkü özet</Text>
-            <Text style={styles.heroDate}>{welcomeDate}</Text>
-            <View style={styles.heroLine} />
-          </View>
-          <View style={styles.heroGoldWrap}>
-            <View style={styles.heroGoldPill}>
-              <Ionicons name="diamond" size={14} color={Colors.primary} />
-              <Text style={styles.heroGoldValue}>
+        {/* Gold */}
+        <GlassCard style={{ marginBottom: 16 }} delay={80} colors={colors} isDark={isDark}>
+          <View style={styles.goldRow}>
+            <View style={[styles.goldIcon, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '20' }]}>
+              <Ionicons name="diamond" size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.goldLbl, { color: colors.subtext }]}>Has Altın (gr)</Text>
+              <Text style={[styles.goldVal, { color: colors.text }]}>
                 {goldPrice != null
-                  ? `${goldPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺`
+                  ? `₺${goldPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                   : '—'}
               </Text>
             </View>
-            {goldPriceIsFallback && (
-              <Text style={styles.heroGoldFallbackHint}>güncel değil</Text>
-            )}
-          </View>
-        </View>
-
-        {/* Gram özeti başlığı */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Gram özeti</Text>
-          <View style={styles.sectionTitleLine} />
-        </View>
-        <View style={styles.statsGrid}>
-          {statsCards.map((stat, index) => (
-            <View key={index} style={styles.statCardWrapper}>
-              <View
-                style={[
-                  styles.statCard,
-                  { height: calculateHeight(128) },
-                  { borderLeftColor: stat.color },
-                ]}
-              >
-                <View style={[styles.statIconWrap, { backgroundColor: stat.color + '22' }]}>
-                  <Ionicons name={stat.icon as any} size={22} color={stat.color} />
-                </View>
-                <Text style={[styles.statValue, { fontSize: calculateFontSize(28) }]} numberOfLines={1}>
-                  {stat.value}
-                </Text>
-                <Text style={[styles.statLabel, { fontSize: calculateFontSize(11) }]} numberOfLines={2}>
-                  {stat.title}
-                </Text>
-              </View>
+            <View style={[styles.goldBadge, {
+              backgroundColor: goldFallback ? colors.warning + '18' : colors.success + '15',
+            }]}>
+              <View style={[styles.liveDot, {
+                backgroundColor: goldFallback ? colors.warning : colors.success,
+              }]} />
+              <Text style={[styles.goldBadgeText, {
+                color: goldFallback ? colors.warning : colors.success,
+              }]}>
+                {goldFallback ? 'Canlı değil' : 'Canlı'}
+              </Text>
             </View>
+          </View>
+        </GlassCard>
+
+        {/* Stats */}
+        <View style={styles.statsGrid}>
+          {stats.map((c, i) => (
+            <StatItem key={i} idx={i} label={c.label} value={c.val} icon={c.icon} color={c.color} colors={colors} isDark={isDark} />
           ))}
         </View>
 
-        {/* Haftalık kar grafiği */}
-        <View style={styles.chartBlock}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Haftalık kar</Text>
-            <View style={styles.sectionTitleLine} />
-          </View>
-          <View style={styles.chartSection}>
-            {renderWeeklyChart()}
-            <View style={styles.chartHintWrap}>
-              <Ionicons name="hand-left-outline" size={14} color={Colors.subtext} />
-              <Text style={styles.chartHint}>Kaydırarak günlük değeri inceleyin</Text>
-            </View>
-          </View>
-        </View>
+        {/* Chart */}
+        {renderChart()}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const cardShadow = Platform.select({
-  ios: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-  },
-  android: { elevation: 4 },
-});
-
+/* ═══ Styles ═══ */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    padding: Spacing.screenPadding,
-    paddingBottom: 48,
-  },
-  hero: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.lg,
-    paddingLeft: Spacing.lg + 4,
-    position: 'relative',
+  safe: { flex: 1 },
+  scroll: { paddingHorizontal: PAD, paddingBottom: TAB_H },
+
+  glass: {
+    borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: Colors.card,
-    borderRadius: Spacing.radiusLg,
     borderWidth: 1,
-    borderColor: Colors.border,
   },
-  heroAccent: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-    backgroundColor: Colors.primary,
-    borderTopLeftRadius: Spacing.radiusLg,
-    borderBottomLeftRadius: Spacing.radiusLg,
-  },
-  heroIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.primary + '18',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.md,
-  },
-  heroTextWrap: {
-    flex: 1,
-  },
-  heroLabel: {
-    color: Colors.primary,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  heroDate: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  heroLine: {
-    width: 28,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: Colors.primary,
-    marginTop: 8,
-  },
-  heroGoldWrap: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    paddingLeft: Spacing.md,
-  },
-  heroGoldPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.primary + '22',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 999,
+
+  goldRow: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
+  goldIcon: {
+    width: 42, height: 42, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.primary + '44',
   },
-  heroGoldValue: {
-    color: Colors.primary,
-    fontSize: 14,
-    fontWeight: '700',
+  goldLbl: { fontSize: 12, fontWeight: '500', marginBottom: 2 },
+  goldVal: { fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
+  goldBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
   },
-  heroGoldFallbackHint: {
-    color: Colors.subtext,
-    fontSize: 9,
-    marginTop: 6,
-    fontStyle: 'italic',
-  },
-  sectionHeader: {
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.lg,
-  },
-  sectionTitle: {
-    color: Colors.subtext,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.8,
-  },
-  sectionTitleLine: {
-    width: 24,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: Colors.primary,
-    marginTop: 6,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  statCardWrapper: {
-    width: '48%',
-    marginBottom: Spacing.md,
-  },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+  goldBadgeText: { fontSize: 11, fontWeight: '600' },
+
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
   statCard: {
-    backgroundColor: Colors.card,
-    borderRadius: Spacing.radiusXl,
-    padding: Spacing.lg,
-    borderLeftWidth: 4,
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    overflow: 'hidden',
-    ...cardShadow,
-  },
-  statIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-    marginBottom: Spacing.sm,
-  },
-  statValue: {
-    color: Colors.text,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  statLabel: {
-    color: Colors.subtext,
-    fontWeight: '500',
-    lineHeight: 16,
-  },
-  chartBlock: {
-    marginTop: Spacing.xxl,
-  },
-  chartSection: {
-    marginTop: Spacing.sm,
-  },
-  chartHintWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: Spacing.md,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    backgroundColor: Colors.card,
-    borderRadius: 999,
-    alignSelf: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  chartHint: {
-    color: Colors.subtext,
-    fontSize: 11,
-  },
-  chartCard: {
-    backgroundColor: Colors.card,
-    borderRadius: Spacing.radiusXl,
-    padding: Spacing.xl,
-    paddingBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.primary + '22',
-    borderTopWidth: 2,
-    borderTopColor: Colors.primary + '44',
-    position: 'relative',
-    overflow: 'hidden',
-    ...cardShadow,
-  },
-  chartTouchArea: {
-    zIndex: 1,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.lg,
-    marginTop: Spacing.xs,
-  },
-  chartSubtitle: {
-    color: Colors.subtext,
-    fontSize: 12,
-    marginBottom: 4,
-    fontWeight: '500',
-  },
-  chartMainTitle: {
-    color: Colors.primary,
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  chartValueBadge: {
-    backgroundColor: Colors.primary + '18',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Spacing.radiusMd,
-  },
-  chartValue: {
-    color: Colors.catalogGoldLight,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  chartContainer: {
-    backgroundColor: Colors.card,
-    borderRadius: Spacing.radiusLg,
-    padding: Spacing.lg,
-    alignItems: 'center',
-  },
-  noChartData: {
-    backgroundColor: Colors.card,
-    borderRadius: Spacing.radiusLg,
-    padding: 40,
-    alignItems: 'center',
-  },
-  noChartText: {
-    color: Colors.subtext,
-    fontSize: 14,
-  },
-  weeklyCard: {
-    backgroundColor: Colors.card,
-    borderRadius: Spacing.radiusLg,
-    padding: Spacing.xxl,
-    alignItems: 'center',
-  },
-  weeklyValue: {
-    color: Colors.primary,
-    fontWeight: '800',
-  },
-  weeklyLabel: {
-    color: Colors.subtext,
-    marginTop: 4,
-  },
-  machineStatusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statusItem: {
     flex: 1,
-    backgroundColor: Colors.card,
-    borderRadius: Spacing.radiusMd,
-    padding: Spacing.lg,
-    marginHorizontal: Spacing.xs,
-    borderLeftWidth: 4,
-    alignItems: 'center',
+    minWidth: (SW - PAD * 2 - 10) / 2 - 6,
+    paddingVertical: 18,
+    paddingHorizontal: 14,
+    gap: 8,
   },
-  statusValue: {
-    color: Colors.text,
-    fontSize: 24,
-    fontWeight: '700',
+  statIconBox: {
+    width: 36, height: 36, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
   },
-  statusLabel: {
-    color: Colors.subtext,
-    fontSize: 12,
-    marginTop: 4,
+  statVal: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+  statLabel: { fontSize: 12, fontWeight: '500' },
+  cornerDot: {
+    position: 'absolute', top: 12, right: 12,
+    width: 5, height: 5, borderRadius: 3, opacity: 0.35,
   },
+
+  chartHead: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'flex-start', marginBottom: 12,
+  },
+  chartSub: { fontSize: 13, fontWeight: '500', marginBottom: 4 },
+  chartBig: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  chartUnit: { fontSize: 14, fontWeight: '500' },
+  dayPill: {
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 12,
+    borderWidth: 1,
+  },
+  dayPillText: { fontSize: 12, fontWeight: '700' },
 });

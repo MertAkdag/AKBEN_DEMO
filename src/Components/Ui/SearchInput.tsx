@@ -1,28 +1,32 @@
 import React from 'react';
 import { View, TextInput, StyleSheet, TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../Constants/Colors';
 import { useResponsive } from '../../Hooks/UseResponsive';
+import { useTheme } from '../../Context/ThemeContext';
 
 interface Props extends Omit<TextInputProps, 'style'> {
   value: string;
   onChangeText: (text: string) => void;
 }
 
-
 export const SearchInput = ({ value, onChangeText, placeholder = 'Search...', ...props }: Props) => {
   const { calculateHeight, calculateFontSize } = useResponsive();
+  const { colors } = useTheme();
 
   return (
-    <View style={[styles.container, { height: calculateHeight(48) }]}>
-      <Ionicons name="search-outline" size={20} color={Colors.subtext} style={styles.icon} />
+    <View style={[styles.container, {
+      height: calculateHeight(48),
+      backgroundColor: colors.input,
+      borderColor: 'transparent',
+    }]}>
+      <Ionicons name="search-outline" size={20} color={colors.subtext} style={styles.icon} />
       <TextInput
-        style={[styles.input, { fontSize: calculateFontSize(15) }]}
+        style={[styles.input, { fontSize: calculateFontSize(15), color: colors.text }]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={Colors.subtext}
-        cursorColor={Colors.primary}
+        placeholderTextColor={colors.subtext}
+        cursorColor={colors.primary}
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
@@ -37,19 +41,16 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.input,
     borderRadius: 14,
     paddingHorizontal: 16,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: 'transparent',
   },
   icon: {
     marginRight: 10,
   },
   input: {
     flex: 1,
-    color: Colors.text,
     height: '100%',
   },
 });
