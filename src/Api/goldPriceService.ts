@@ -101,7 +101,8 @@ function findByKey(list: any[], names: string[]): any | null {
 /* ─── Fallback ─── */
 const FALLBACK_ITEMS: FinanceItem[] = [
   { key: 'gold', label: 'Has Altın', subtitle: 'Gram fiyatı', icon: 'diamond', buy: 0, sell: 0, change: '—', changeNum: 0, unit: '₺', isFallback: true },
-  { key: 'gold', label: '22 Ayar', subtitle: '22 Ayar', icon: 'diamond', buy: 0, sell: 0, change: '—', changeNum: 0, unit: '₺', isFallback: true },
+  { key: '22ayar', label: '22 Ayar', subtitle: '22 Ayar Bilezik', icon: 'diamond', buy: 0, sell: 0, change: '—', changeNum: 0, unit: '₺', isFallback: true },
+  { key: 'usd', label: 'Dolar', subtitle: 'USD / TRY', icon: 'logo-usd', buy: 0, sell: 0, change: '—', changeNum: 0, unit: '₺', isFallback: true },
   { key: 'eur', label: 'Euro', subtitle: 'EUR / TRY', icon: 'logo-euro', buy: 0, sell: 0, change: '—', changeNum: 0, unit: '₺', isFallback: true },
 ];
 
@@ -112,7 +113,7 @@ const FALLBACK_ITEMS: FinanceItem[] = [
    { key, buy, sell, percent, arrow, last_update }
    Key'ler: "Has Altın", "GRAM ALTIN", "ONS", …
    ════════════════════════════════════════════ */
-async function fetchHaremGold(): Promise<FinanceItem | null> {
+async function fetchHaremGold(): Promise<{ gold: FinanceItem; ayar22: FinanceItem | null } | null> {
   try {
     log('Harem: istek atılıyor…');
     const res = await fetchWithTimeout(
@@ -142,7 +143,7 @@ async function fetchHaremGold(): Promise<FinanceItem | null> {
     const pct = parseFloat(String(entry.percent ?? '0').replace(',', '.')) || 0;
     const changeNum = entry.arrow === 'down' ? -Math.abs(pct) : pct;
 
-    const item: FinanceItem = {
+    const goldItem: FinanceItem = {
       key: 'gold',
       label: 'Has Altın',
       subtitle: 'Gram fiyatı',
@@ -155,8 +156,30 @@ async function fetchHaremGold(): Promise<FinanceItem | null> {
       isFallback: false,
     };
 
-    log('Harem ✓ Has Altın satış =', item.sell, 'değişim =', item.change);
-    return item;
+    log('Harem ✓ Has Altın satış =', goldItem.sell, 'değişim =', goldItem.change);
+
+    /* 22 Ayar */
+    const ayar22 = findByKey(list, ['22 Ayar', '22 AYAR', '22Ayar', '22 Ayar Bilezik']);
+    let ayar22Item: FinanceItem | null = null;
+    if (ayar22) {
+      const pct22 = parseFloat(String(ayar22.percent ?? '0').replace(',', '.')) || 0;
+      const changeNum22 = ayar22.arrow === 'down' ? -Math.abs(pct22) : pct22;
+      ayar22Item = {
+        key: '22ayar',
+        label: '22 Ayar',
+        subtitle: '22 Ayar Bilezik',
+        icon: 'diamond',
+        buy: safeNum(ayar22.buy),
+        sell: safeNum(ayar22.sell),
+        change: fmtChange(changeNum22),
+        changeNum: changeNum22,
+        unit: '₺',
+        isFallback: false,
+      };
+      log('Harem ✓ 22 Ayar satış =', ayar22Item.sell);
+    }
+
+    return { gold: goldItem, ayar22: ayar22Item };
   } catch (e) {
     log('Harem: hata', e);
     return null;
@@ -239,8 +262,8 @@ export const goldPriceService = {
     let source = 'fallback';
 
     // Altın: Harem öncelikli, yoksa Truncgil
-    if (haremGold) {
-      items.push(haremGold);
+    if (haremGold?.gold) {
+      items.push(haremGold.gold);
       source = 'harem';
     } else if (truncgil?.gold) {
       items.push(truncgil.gold);
@@ -249,17 +272,24 @@ export const goldPriceService = {
       items.push(FALLBACK_ITEMS[0]);
     }
 
+    // 22 Ayar: Harem öncelikli
+    if (haremGold?.ayar22) {
+      items.push(haremGold.ayar22);
+    } else {
+      items.push(FALLBACK_ITEMS[1]);
+    }
+
     // Döviz: Truncgil
     if (truncgil?.usd) {
       items.push(truncgil.usd);
     } else {
-      items.push(FALLBACK_ITEMS[1]);
+      items.push(FALLBACK_ITEMS[2]);
     }
 
     if (truncgil?.eur) {
       items.push(truncgil.eur);
     } else {
-      items.push(FALLBACK_ITEMS[2]);
+      items.push(FALLBACK_ITEMS[3]);
     }
 
     const isFallback = items.every(i => i.isFallback);

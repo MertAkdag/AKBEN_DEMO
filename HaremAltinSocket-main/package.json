@@ -1,0 +1,22 @@
+{
+  "name": "haremaltin-websocket-test",
+  "version": "1.0.0",
+  "description": "HaremAltın WebSocket API test ve örnekleri",
+  "main": "example.js",
+  "scripts": {
+    "start": "node example.js",
+    "test": "node test.js"
+  },
+  "keywords": [
+    "websocket",
+    "haremaltin",
+    "realtime",
+    "price"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "socket.io-client": "^4.5.4"
+  }
+}
+

@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider } from "../src/Context/AuthContext";
 import { ThemeProvider, useTheme } from "../src/Context/ThemeContext";
 import { CartProvider } from "../src/Context/CartContext";
+import { GoldPriceProvider } from "../src/Context/GoldPriceContext";
 import { ErrorBoundary } from "../src/Components/Ui/ErrorBoundary";
 
 const queryClient = new QueryClient({
@@ -56,9 +57,11 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
             <AuthProvider>
-              <CartProvider>
-                <InnerLayout />
-              </CartProvider>
+              <GoldPriceProvider>
+                <CartProvider>
+                  <InnerLayout />
+                </CartProvider>
+              </GoldPriceProvider>
             </AuthProvider>
           </ThemeProvider>
         </QueryClientProvider>

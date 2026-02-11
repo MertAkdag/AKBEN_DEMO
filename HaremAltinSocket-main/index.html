@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HaremAltın Socket.IO Örneği</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background: #f5f5f5;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ccc;
+        }
+
+        .status-indicator.connected {
+            background: #4caf50;
+            box-shadow: 0 0 10px #4caf50;
+        }
+
+        .status-indicator.disconnected {
+            background: #f44336;
+        }
+
+        .status-indicator.connecting {
+            background: #ff9800;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-connect {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-connect:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .btn-disconnect {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-disconnect:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.4);
+        }
+
+        .btn-clear {
+            background: #2196f3;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #0b7dda;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .messages {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 10px;
+            padding: 20px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            word-wrap: break-word;
+        }
+
+        .message.info {
+            background: rgba(33, 150, 243, 0.2);
+            border-left: 3px solid #2196f3;
+        }
+
+        .message.success {
+            background: rgba(76, 175, 80, 0.2);
+            border-left: 3px solid #4caf50;
+        }
+
+        .message.error {
+            background: rgba(244, 67, 54, 0.2);
+            border-left: 3px solid #f44336;
+        }
+
+        .message.event {
+            background: rgba(156, 39, 176, 0.2);
+            border-left: 3px solid #9c27b0;
+        }
+
+        .timestamp {
+            color: #888;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+
+        .event-name {
+            color: #ffd700;
+            font-weight: bold;
+        }
+
+        .json-data {
+            color: #4ec9b0;
+            margin-top: 5px;
+            white-space: pre-wrap;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #2d2d2d;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏆 HaremAltın Socket.IO Test</h1>
+        <p class="subtitle">Gerçek zamanlı fiyat değişikliklerini dinleyin</p>
+
+        <div class="status">
+            <div class="status-indicator disconnected" id="statusIndicator"></div>
+            <span id="statusText">Bağlantı Yok</span>
+        </div>
+
+        <div class="controls">
+            <button class="btn-connect" id="connectBtn" onclick="connect()">Bağlan</button>
+            <button class="btn-disconnect" id="disconnectBtn" onclick="disconnect()" disabled>Bağlantıyı Kes</button>
+            <button class="btn-clear" id="clearBtn" onclick="clearMessages()">Temizle</button>
+        </div>
+
+        <div class="messages" id="messages"></div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        let socket = null;
+        const socketUrl = 'https://socket.haremaltin.com:443';
+        const messagesDiv = document.getElementById('messages');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+
+        function addMessage(message, type = 'info') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString('tr-TR');
+            messageDiv.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateStatus(status) {
+            statusIndicator.className = `status-indicator ${status}`;
+            
+            switch(status) {
+                case 'connected':
+                    statusText.textContent = 'Bağlı';
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    break;
+                case 'connecting':
+                    statusText.textContent = 'Bağlanıyor...';
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = true;
+                    break;
+                case 'disconnected':
+                    statusText.textContent = 'Bağlantı Yok';
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    break;
+            }
+        }
+
+        function connect() {
+            if (socket && socket.connected) {
+                addMessage('Zaten bağlı!', 'info');
+                return;
+            }
+
+            updateStatus('connecting');
+            addMessage(`Socket.IO bağlantısı kuruluyor: ${socketUrl}`, 'info');
+
+            try {
+                socket = io(socketUrl, {
+                    transports: ['websocket', 'polling'],
+                    reconnection: true,
+                    reconnectionDelay: 1000,
+                    reconnectionDelayMax: 5000,
+                    reconnectionAttempts: 5
+                });
+
+                socket.on('connect', function() {
+                    updateStatus('connected');
+                    addMessage('✅ Socket.IO bağlantısı başarıyla kuruldu!', 'success');
+                    addMessage(`Socket ID: ${socket.id}`, 'info');
+                    addMessage('price_changed eventi dinleniyor...', 'info');
+                });
+
+                socket.on('disconnect', function(reason) {
+                    updateStatus('disconnected');
+                    addMessage(`🔌 Bağlantı kesildi. Sebep: ${reason}`, 'info');
+                });
+
+                socket.on('connect_error', function(error) {
+                    updateStatus('disconnected');
+                    addMessage(`❌ Bağlantı hatası: ${error.message}`, 'error');
+                    console.error('Socket.IO error:', error);
+                });
+
+                socket.on('reconnect', function(attemptNumber) {
+                    addMessage(`🔄 Yeniden bağlandı (Deneme: ${attemptNumber})`, 'success');
+                });
+
+                // price_changed eventini dinle
+                socket.on('price_changed', function(data) {
+                    addMessage(
+                        `<span class="event-name">📊 price_changed</span> eventi alındı!<br>
+                        <div class="json-data">${JSON.stringify(data, null, 2)}</div>`,
+                        'event'
+                    );
+                });
+
+                // Diğer eventleri de dinle
+                socket.onAny((eventName, ...args) => {
+                    if (eventName !== 'price_changed' && eventName !== 'connect' && eventName !== 'disconnect') {
+                        addMessage(
+                            `Event alındı: <span class="event-name">${eventName}</span><br>
+                            <div class="json-data">${JSON.stringify(args, null, 2)}</div>`,
+                            'info'
+                        );
+                    }
+                });
+
+            } catch (error) {
+                updateStatus('disconnected');
+                addMessage(`❌ Bağlantı hatası: ${error.message}`, 'error');
+                console.error('Connection error:', error);
+            }
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                addMessage('Bağlantı kapatılıyor...', 'info');
+            }
+        }
+
+        function clearMessages() {
+            messagesDiv.innerHTML = '';
+            addMessage('Mesajlar temizlendi.', 'info');
+        }
+
+        // Sayfa yüklendiğinde otomatik bağlan (isteğe bağlı)
+        // window.addEventListener('load', connect);
+    </script>
+</body>
+</html>
+

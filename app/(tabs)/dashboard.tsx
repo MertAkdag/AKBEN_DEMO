@@ -33,7 +33,8 @@ import { ScreenHeader } from '../../src/Shared/Header';
 import { StatCardSkeleton, ChartSkeleton } from '../../src/Components/Ui/Skeleton';
 import { ErrorState } from '../../src/Components/Ui/ErrorState';
 import { dashboardService, DashboardSummary } from '../../src/Api/dashboardService';
-import { goldPriceService, FinanceItem } from '../../src/Api/goldPriceService';
+import { FinanceItem } from '../../src/Api/goldPriceService';
+import { useGoldPrice } from '../../src/Context/GoldPriceContext';
 import { useResponsive } from '../../src/Hooks/UseResponsive';
 import { useTheme } from '../../src/Context/ThemeContext';
 import { lightImpact } from '../../src/Utils/haptics';
@@ -83,14 +84,16 @@ function GlassCard({ children, style, delay = 0, colors, isDark }: {
 }
 
 /* ─── Finans Ticker Card ─── */
-function FinanceTickerCard({ item, colors, isDark, isFallback }: {
-  item: FinanceItem; colors: ThemeColors; isDark: boolean; isFallback: boolean;
+function FinanceTickerCard({ item, colors, isDark, isFallback, source }: {
+  item: FinanceItem; colors: ThemeColors; isDark: boolean; isFallback: boolean; source: string;
 }) {
   const isUp = item.changeNum > 0;
   const isDown = item.changeNum < 0;
   const changeColor = isUp ? colors.success : isDown ? colors.error : colors.subtext;
   const changeIcon = isUp ? 'trending-up' : isDown ? 'trending-down' : 'remove-outline';
-  const liveColor = isFallback ? colors.warning : colors.success;
+  const isSocket = source === 'socket';
+  const liveColor = isFallback ? colors.warning : isSocket ? '#10B981' : colors.success;
+  const liveLabel = isFallback ? 'Çevrimdışı' : isSocket ? 'Anlık' : 'Canlı';
 
   return (
     <View style={[
@@ -116,9 +119,7 @@ function FinanceTickerCard({ item, colors, isDark, isFallback }: {
         </View>
         <View style={[styles.liveBadge, { backgroundColor: liveColor + '15' }]}>
           <View style={[styles.liveDot, { backgroundColor: liveColor }]} />
-          <Text style={[styles.liveText, { color: liveColor }]}>
-            {isFallback ? 'Çevrimdışı' : 'Canlı'}
-          </Text>
+          <Text style={[styles.liveText, { color: liveColor }]}>{liveLabel}</Text>
         </View>
       </View>
 
@@ -169,28 +170,30 @@ function StatItem({ label, value, icon, color, idx, colors, isDark }: {
 export default function DashboardScreen() {
   const { calculateFontSize } = useResponsive();
   const { colors, isDark } = useTheme();
+  const goldPrice = useGoldPrice();
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selIdx, setSelIdx] = useState(0);
-  const [financeItems, setFinanceItems] = useState<FinanceItem[]>([]);
-  const [financeFallback, setFinanceFallback] = useState(false);
   const [tickerPage, setTickerPage] = useState(0);
+
+  /* Finans verileri artık GoldPriceContext'ten geliyor */
+  const financeItems = goldPrice.items;
+  const financeFallback = goldPrice.isFallback;
 
   const fetchData = useCallback(async () => {
     try { setError(null); setData(await dashboardService.getSummary()); }
     catch (e: any) { setError(e.message || 'Veriler yüklenemedi'); }
     finally { setIsLoading(false); setRefreshing(false); }
   }, []);
-  const fetchFinance = useCallback(async () => {
-    const r = await goldPriceService.getFinanceData();
-    setFinanceItems(r.items); setFinanceFallback(r.isFallback);
-  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { fetchFinance(); }, [fetchFinance]);
-  const onRefresh = useCallback(() => { setRefreshing(true); fetchData(); fetchFinance(); }, [fetchData, fetchFinance]);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData();
+    goldPrice.refresh();
+  }, [fetchData, goldPrice.refresh]);
 
   const stats = data ? [
     { label: 'Satış', val: data.totalSalesGram, icon: 'arrow-up-circle', color: colors.success },
@@ -357,7 +360,7 @@ export default function DashboardScreen() {
               }}
               scrollEventThrottle={16}
               renderItem={({ item }) => (
-                <FinanceTickerCard item={item} colors={colors} isDark={isDark} isFallback={financeFallback} />
+                <FinanceTickerCard item={item} colors={colors} isDark={isDark} isFallback={financeFallback} source={goldPrice.source} />
               )}
             />
             {/* Sayfa göstergesi */}
