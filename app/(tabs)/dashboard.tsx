@@ -34,6 +34,9 @@ import { StatCardSkeleton, ChartSkeleton } from '../../src/Components/Ui/Skeleto
 import { ErrorState } from '../../src/Components/Ui/ErrorState';
 import { dashboardService, DashboardSummary } from '../../src/Api/dashboardService';
 import { FinanceItem } from '../../src/Api/goldPriceService';
+import { catalogService } from '../../src/Api/catalogService';
+import { ProductOfWeekSlider } from '../../src/Components/Cards/ProductOfWeekSlider';
+import type { Product } from '../../src/Types/catalog';
 import { useGoldPrice } from '../../src/Context/GoldPriceContext';
 import { useResponsive } from '../../src/Hooks/UseResponsive';
 import { useTheme } from '../../src/Context/ThemeContext';
@@ -177,6 +180,8 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selIdx, setSelIdx] = useState(0);
   const [tickerPage, setTickerPage] = useState(0);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
 
   /* Finans verileri artık GoldPriceContext'ten geliyor */
   const financeItems = goldPrice.items;
@@ -189,6 +194,12 @@ export default function DashboardScreen() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    catalogService.getFeaturedProducts().then((res) => {
+      setFeaturedProducts(res.data);
+    }).finally(() => setFeaturedLoading(false));
+  }, []);
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchData();
@@ -380,6 +391,9 @@ export default function DashboardScreen() {
             </View>
           </Animated.View>
         )}
+
+        {/* Haftanın Ürünü kampanya slider */}
+        <ProductOfWeekSlider products={featuredProducts} isLoading={featuredLoading} />
 
         {/* Stats */}
         <View style={styles.statsGrid}>
