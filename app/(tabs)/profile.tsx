@@ -7,10 +7,10 @@ import { useRouter } from 'expo-router';
 import { Spacing } from '../../src/Constants/Spacing';
 import { Button } from '../../src/Components/Ui/Button';
 import { ScreenHeader } from '../../src/Shared/Header';
-import { useAuth } from '../../src/Context/AuthContext';
 import { useTheme } from '../../src/Context/ThemeContext';
 import { lightImpact } from '../../src/Utils/haptics';
 import type { ThemeColors } from '../../src/Constants/Theme';
+import { useAuth } from '../../src/features/auth/useAuth';
 
 const TAB_BAR_HEIGHT = 100;
 const AVATAR_SIZE = 96;
@@ -176,7 +176,6 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { colors, isDark, toggleTheme } = useTheme();
   const router = useRouter();
-  const role = user?.role === 'ADMIN' ? 'Yönetici' : user?.role === 'TECHNICIAN' ? 'Teknisyen' : (user?.role || '-');
 
   const cardStyle = useMemo(() => ({
     backgroundColor: colors.card,
@@ -202,41 +201,60 @@ export default function ProfileScreen() {
           >
             {user?.name || '-'}
           </Animated.Text>
-
-          <Animated.View entering={FadeIn.delay(300).duration(400)} style={[s.rolePill, {
-            backgroundColor: isDark ? colors.primary + '14' : colors.primary + '10',
-            borderWidth: 1,
-            borderColor: colors.primary + '20',
-          }]}>
-            <View style={[s.roleDot, { backgroundColor: colors.primary }]} />
-            <Text style={[s.roleText, { color: colors.primary }]}>{role}</Text>
-          </Animated.View>
         </Animated.View>
 
         {/* Bilgi kartı */}
         <Animated.View entering={FadeInDown.duration(500).delay(80).springify()} style={[s.card, cardStyle]}>
           <InfoRow icon="person" label="İsim" value={user?.name || '-'} colors={colors} />
-          <InfoRow icon="mail" label="Email" value={user?.email || '-'} colors={colors} />
-          <InfoRow icon="shield-checkmark" label="Rol" value={role} last colors={colors} />
+          <InfoRow icon="mail" label="E-posta" value={user?.email || '-'} colors={colors} last />
         </Animated.View>
 
-        {/* Yönetim kartı */}
+        {/* Siparişlerim */}
         <Animated.View entering={FadeInDown.duration(500).delay(120).springify()}>
-          <Text style={[s.sectionTitle, { color: colors.subtext }]}>Yönetim</Text>
+          <Text style={[s.sectionTitle, { color: colors.subtext }]}>Siparişlerim</Text>
           <View style={[s.card, cardStyle]}>
             <SettingRow
-              icon="swap-horizontal"
-              label="İşlemler"
-              value="Satış, alış ve işçilik kayıtları"
+              icon="receipt-outline"
+              label="Siparişlerim"
+              value="Tüm siparişleriniz"
               colors={colors}
-              onPress={() => { lightImpact(); router.push('/transactions'); }}
+              onPress={() => { lightImpact(); router.push('/orders'); }}
+            />
+            <SettingRow
+              icon="car-outline"
+              label="Sevkiyatlarım"
+              value="Kargo takip ve teslimat"
+              colors={colors}
+              onPress={() => { lightImpact(); router.push('/shipping'); }}
+              last
+            />
+          </View>
+        </Animated.View>
+
+        {/* Hesap kartı */}
+        <Animated.View entering={FadeInDown.duration(500).delay(200).springify()}>
+          <Text style={[s.sectionTitle, { color: colors.subtext }]}>Hesabım</Text>
+          <View style={[s.card, cardStyle]}>
+            <SettingRow
+              icon="create-outline"
+              label="Profil Düzenle"
+              value="Ad, e-posta, şirket"
+              colors={colors}
+              onPress={() => { lightImpact(); router.push('/profile/edit'); }}
+            />
+            <SettingRow
+              icon="key-outline"
+              label="Şifre Değiştir"
+              value="Hesap güvenliği"
+              colors={colors}
+              onPress={() => { lightImpact(); router.push('/profile/change-password'); }}
               last
             />
           </View>
         </Animated.View>
 
         {/* Ayarlar kartı */}
-        <Animated.View entering={FadeInDown.duration(500).delay(200).springify()}>
+        <Animated.View entering={FadeInDown.duration(500).delay(240).springify()}>
           <Text style={[s.sectionTitle, { color: colors.subtext }]}>Ayarlar</Text>
           <View style={[s.card, cardStyle]}>
             <SettingRow
@@ -257,8 +275,9 @@ export default function ProfileScreen() {
             <SettingRow
               icon="notifications-outline"
               label="Bildirimler"
-              value="Açık"
+              value="Ayarlar ve tercihler"
               colors={colors}
+              onPress={() => { lightImpact(); router.push('/notifications'); }}
               last
             />
           </View>

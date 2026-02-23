@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { logger } from '../Utils/logger';
 
 const BASE_URL = 'https://technical-test-backend.bkns-software.com/api';
 
@@ -33,7 +34,7 @@ axiosClient.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       // Token geçersiz, belki logout yapılabilir
       // await SecureStore.deleteItemAsync('accessToken');
-      console.log('🔑 Access Token:', error.response.data);
+      logger.warn('401 from API', error.response.data);
     }
     return Promise.reject(error);
   }

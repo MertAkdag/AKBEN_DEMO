@@ -8,18 +8,21 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Image,
+  TouchableOpacity,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { CustomInput } from '../../src/Components/Ui/Input';
 import { Button } from '../../src/Components/Ui/Button';
 import { useResponsive } from '../../src/Hooks/UseResponsive';
-import { useAuth } from '../../src/Context/AuthContext';
 import { useTheme } from '../../src/Context/ThemeContext';
-import { successNotification } from '../../src/Utils/haptics';
+import { successNotification, lightImpact } from '../../src/Utils/haptics';
+import { useAuth } from '../../src/features/auth/useAuth';
 
 export default function LoginScreen() {
   const { calculateHeight, calculateWidth, calculateFontSize } = useResponsive();
   const { login } = useAuth();
   const { colors } = useTheme();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -53,7 +56,7 @@ export default function LoginScreen() {
               resizeMode="contain"
             />
             <Text style={[s.brand, { fontSize: calculateFontSize(28), color: colors.text }]}>Akben</Text>
-            <Text style={[s.tagline, { color: colors.subtext }]}>Kuyumcu yönetim paneli</Text>
+            <Text style={[s.tagline, { color: colors.subtext }]}>Hesabınıza giriş yapın</Text>
           </View>
 
           {/* Form */}
@@ -85,6 +88,13 @@ export default function LoginScreen() {
               fullWidth
               style={{ marginTop: 8 }}
             />
+            <TouchableOpacity
+              onPress={() => { lightImpact(); router.push('/(auth)/forgot-password'); }}
+              style={s.forgotBtn}
+              activeOpacity={0.7}
+            >
+              <Text style={[s.forgotText, { color: colors.primary }]}>Şifremi Unuttum</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Gizlilik notu */}
@@ -110,5 +120,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
   },
   error: { fontSize: 13, marginBottom: 8 },
+  forgotBtn: { alignItems: 'center', marginTop: 14 },
+  forgotText: { fontSize: 14, fontWeight: '600' },
   privacy: { fontSize: 12, fontWeight: '500', marginTop: 24, textAlign: 'center', letterSpacing: 0.1 },
 });

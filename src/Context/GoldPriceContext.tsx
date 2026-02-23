@@ -22,10 +22,11 @@ import React, {
 import { AppState, AppStateStatus } from 'react-native';
 import { haremSocket, SocketStatus } from '../Api/socketService';
 import { goldPriceService, FinanceItem } from '../Api/goldPriceService';
+import { logger } from '../Utils/logger';
 
 const DEBUG = __DEV__;
 function log(...args: unknown[]) {
-  if (DEBUG) console.log('[GoldPrice]', ...args);
+  if (DEBUG) logger.info('[GoldPrice]', ...args);
 }
 
 /* ─── Tipler ─── */

@@ -27,6 +27,7 @@ import { Spacing } from '../../src/Constants/Spacing';
 import { ScreenHeader } from '../../src/Shared/Header';
 import { useTheme } from '../../src/Context/ThemeContext';
 import { useCart, CartItem } from '../../src/Context/CartContext';
+import { useOrdersStore } from '../../src/store/orders/ordersStore';
 import { lightImpact } from '../../src/Utils/haptics';
 import type { ThemeColors } from '../../src/Constants/Theme';
 
@@ -362,8 +363,8 @@ function CartItemCard({
 /* ═══════════════════════════════════════════
    Sepet Özeti Footer
    ═══════════════════════════════════════════ */
-function CartSummary({ totalCount, itemCount, colors, isDark }: {
-  totalCount: number; itemCount: number; colors: ThemeColors; isDark: boolean;
+function CartSummary({ totalCount, itemCount, colors, isDark, onCheckout }: {
+  totalCount: number; itemCount: number; colors: ThemeColors; isDark: boolean; onCheckout: () => void;
 }) {
   return (
     <Animated.View
@@ -385,6 +386,26 @@ function CartSummary({ totalCount, itemCount, colors, isDark }: {
       <View style={sm.row}>
         <Text style={[sm.label, { color: colors.subtext }]}>Toplam adet</Text>
         <Text style={[sm.value, { color: colors.primary }]}>{totalCount}</Text>
+      </View>
+      <View style={[sm.divider, { backgroundColor: isDark ? colors.divider : colors.border + '25' }]} />
+      <View style={sm.row}>
+        <Pressable
+          onPress={onCheckout}
+          style={({ pressed }) => [
+            sm.checkoutBtn,
+            {
+              backgroundColor: colors.primary,
+              opacity: pressed ? 0.9 : 1,
+              ...Platform.select({
+                ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0.4 : 0.25, shadowRadius: 10 },
+                android: { elevation: 3 },
+              }),
+            },
+          ]}
+        >
+          <Ionicons name="receipt-outline" size={18} color="#111" />
+          <Text style={[sm.checkoutText, { color: '#111' }]}>Siparişi Tamamla</Text>
+        </Pressable>
       </View>
     </Animated.View>
   );
@@ -408,14 +429,26 @@ const sm = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '500' },
   value: { fontSize: 16, fontWeight: '700', fontVariant: ['tabular-nums'] },
   divider: { height: 1, marginHorizontal: 20 },
+  checkoutBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 999,
+  },
+  checkoutText: { fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
 });
 
 /* ═══════════════════════════════════════════
    Ana Ekran
    ═══════════════════════════════════════════ */
 export default function CartScreen() {
+  const router = useRouter();
   const { colors, isDark } = useTheme();
-  const { items, totalCount, removeFromCart, updateQuantity, clearCart } = useCart();
+  const { items, totalCount, removeFromCart, updateQuantity, clearCart, checkout } = useCart();
+  const { addOrder } = useOrdersStore();
 
   const handleClearCart = useCallback(() => {
     Alert.alert(
@@ -468,9 +501,56 @@ export default function CartScreen() {
         itemCount={items.length}
         colors={colors}
         isDark={isDark}
+        onCheckout={async () => {
+          const result = await checkout();
+          if (!items.length) return;
+          
+          if (result.priceChanges.length > 0) {
+            const summary = result.priceChanges
+              .map((pc) => {
+                const dir = pc.info.direction === 'increase' ? 'arttı' : pc.info.direction === 'decrease' ? 'azaldı' : 'değişmedi';
+                return `${pc.productName}: ${pc.info.oldTotal.toFixed(2)}₺ → ${pc.info.newTotal.toFixed(2)}₺ (${pc.info.percentChange.toFixed(1)}% ${dir})`;
+              })
+              .join('\n');
+            Alert.alert(
+              'Fiyat Değişimi',
+              `Bazı ürünlerin fiyatı sepeti oluşturduğunuz andan bu yana değişti:\n\n${summary}\n\nYine de sipariş oluşturmak istiyor musunuz?`,
+              [
+                { text: 'İptal', style: 'cancel' },
+                {
+                  text: 'Devam Et',
+                  onPress: () => {
+                    // Sipariş oluştur
+                    const orderItems = items.map((item) => ({
+                      product: item.product,
+                      quantity: item.quantity,
+                      pricePerUnit: item.capturedPricePerUnit,
+                    }));
+                    const newOrder = addOrder(orderItems);
+                    clearCart();
+                    lightImpact();
+                    router.push(`/orders/${newOrder.id}`);
+                  },
+                },
+              ],
+            );
+            return;
+          }
+
+          // Fiyat değişikliği yoksa direkt sipariş oluştur
+          const orderItems = items.map((item) => ({
+            product: item.product,
+            quantity: item.quantity,
+            pricePerUnit: item.capturedPricePerUnit,
+          }));
+          const newOrder = addOrder(orderItems);
+          clearCart();
+          lightImpact();
+          router.push(`/orders/${newOrder.id}`);
+        }}
       />
     );
-  }, [items.length, totalCount, colors, isDark]);
+  }, [items.length, totalCount, colors, isDark, checkout, clearCart, addOrder, router]);
 
   if (items.length === 0) {
     return (

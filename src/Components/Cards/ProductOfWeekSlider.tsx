@@ -45,9 +45,6 @@ function ProductCard({ product, index, colors, isDark, onPress }: {
   const cat = product.category?.name ?? '';
   const variant = product.variant?.name ?? '';
   const desc = product.description ?? '';
-  const priceStr = product.unit?.symbol === 'gr'
-    ? `₺${product.pricePerUnit.toLocaleString('tr-TR')}/gr`
-    : `₺${product.pricePerUnit.toLocaleString('tr-TR')}`;
 
   return (
     <AnimPressable
@@ -117,9 +114,8 @@ function ProductCard({ product, index, colors, isDark, onPress }: {
           </Text>
         ) : null}
 
-        {/* Alt kısım: fiyat + ok */}
+        {/* Alt kısım: sadece ok */}
         <View style={s.bottom}>
-          <Text style={[s.price, { color: GOLD }]}>{priceStr}</Text>
           <View style={[s.arrow, { backgroundColor: GOLD + '14' }]}>
             <Ionicons name="arrow-forward" size={16} color={GOLD} />
           </View>
@@ -314,7 +310,7 @@ const s = StyleSheet.create({
   bottom: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     marginTop: 6,
   },
   price: { fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },

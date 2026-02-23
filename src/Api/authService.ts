@@ -1,11 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-}
+import type { User } from '../domain/entities/User';
 
 export interface LoginResponse {
   user: User;

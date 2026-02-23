@@ -10,22 +10,28 @@ interface Props {
   title: string;
   subtitle?: string;
   showBackButton?: boolean;
+  backLabel?: string;
   rightIcon?: keyof typeof Ionicons.glyphMap;
   onRightPress?: () => void;
 }
 
-export const ScreenHeader = ({ title, subtitle, showBackButton, rightIcon, onRightPress }: Props) => {
+export const ScreenHeader = ({ title, subtitle, showBackButton = false, backLabel, rightIcon, onRightPress }: Props) => {
   const router = useRouter();
   const { calculateFontSize } = useResponsive();
   const { colors } = useTheme();
+  const canGoBack = router.canGoBack();
+  const shouldShowBack = showBackButton || canGoBack;
 
   return (
     <View style={styles.container}>
       <View style={styles.row}>
         <View style={styles.left}>
-          {showBackButton && (
+          {shouldShowBack && (
             <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
               <Ionicons name="chevron-back" size={24} color={colors.text} />
+              {backLabel && (
+                <Text style={[styles.backLabel, { color: colors.subtext }]}>{backLabel}</Text>
+              )}
             </TouchableOpacity>
           )}
           <View>
@@ -62,12 +68,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginRight: Spacing.sm,
     padding: Spacing.xs,
-    minWidth: 44,
     minHeight: 44,
     justifyContent: 'center',
-    alignItems: 'center',
+  },
+  backLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    marginLeft: 4,
   },
   title: {
     fontWeight: '800',

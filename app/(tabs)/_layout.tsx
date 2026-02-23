@@ -48,10 +48,10 @@ interface TabDef {
 }
 
 const TABS: TabDef[] = [
-  { name: 'dashboard', title: 'Özet', icon: 'grid-outline', iconFocused: 'grid' },
+  { name: 'dashboard', title: 'Anasayfa', icon: 'grid-outline', iconFocused: 'grid' },
+  { name: 'favorites', title: 'Favoriler', icon: 'heart-outline', iconFocused: 'heart' },
   { name: 'catalog', title: 'Katalog', icon: 'diamond-outline', iconFocused: 'diamond' },
   { name: 'cart', title: 'Sepetim', icon: 'cart-outline', iconFocused: 'cart' },
-  { name: 'cariler', title: 'Cariler', icon: 'people-outline', iconFocused: 'people' },
   { name: 'profile', title: 'Profil', icon: 'person-outline', iconFocused: 'person' },
 ];
 

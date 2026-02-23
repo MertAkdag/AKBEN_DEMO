@@ -1,4 +1,4 @@
-import type { DashboardSummary } from './dashboardService';
+import type { DashboardSummary } from '../domain/entities/Dashboard';
 import type { Machine, MachineLog, PerformanceData } from '../Types/machine';
 import type { Order, UpdateOrderPayload } from '../Types/order';
 import type { Transaction } from '../Types/transaction';

@@ -1,88 +1,43 @@
-import React, { createContext, useContext, useState, useEffect, PropsWithChildren } from 'react';
-import { authService, User } from '../Api/authService';
+import React, { PropsWithChildren, useEffect } from 'react';
 import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { lightImpact } from '../Utils/haptics';
-
-interface AuthContextType {
-  user: User | null;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
-  isAuthenticated: boolean;
-}
-
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  isLoading: false,
-  login: async () => {},
-  logout: async () => {},
-  isAuthenticated: false,
-});
-
-export const useAuth = () => useContext(AuthContext);
+import { useAuth } from '../features/auth/useAuth';
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const navigationState = useRootNavigationState();
 
-  // Uygulama açılışında kayıtlı kullanıcı varsa yükle (demo veya gerçek)
-  useEffect(() => {
-    let cancelled = false;
-    authService
-      .getStoredUser()
-      .then((stored) => {
-        if (!cancelled && stored) setUser(stored);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, []);
-
   // Giriş durumuna göre yönlendir: giriş yoksa login, giriş varsa auth ekranındaysa dashboard
   useEffect(() => {
-    if (!navigationState?.key || isLoading) return;
+    if (!navigationState?.key || loading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const hasNoSegment = !segments[0];
+    const inOnboarding = segments[0] === 'onboarding';
     const inTabs = segments[0] === '(tabs)';
 
+    // Onboarding veya index sayfasındaysak hiçbir şey yapma (index kendi yönlendirmesini yapıyor)
+    if (inOnboarding || hasNoSegment) return;
+
     if (user == null) {
-      if (!inAuthGroup && !hasNoSegment) {
-        router.replace('/(auth)/login');
-      } else if (hasNoSegment) {
+      if (!inAuthGroup) {
         router.replace('/(auth)/login');
       }
       return;
     }
 
-    if (inAuthGroup || hasNoSegment) {
+    if (inAuthGroup) {
       router.replace('/(tabs)/dashboard');
     }
-  }, [user, segments, navigationState?.key, isLoading]);
+  }, [user, segments, navigationState?.key, loading, router]);
 
-  const login = async (email: string, password: string) => {
-    const response = await authService.login(email, password);
-    setUser(response.user);
-    router.replace('/(tabs)/dashboard');
-  };
-
-  const logout = async () => {
+  useEffect(() => {
+    if (!user) return;
     lightImpact();
-    try {
-      await authService.logout();
-    } catch (_) {}
-    setUser(null);
-    router.replace('/(auth)/login');
-  };
+  }, [user]);
 
-  return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, isAuthenticated: !!user }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <>{children}</>;
 };
 

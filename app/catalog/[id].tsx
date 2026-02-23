@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
+  TouchableOpacity,
   RefreshControl,
   Platform,
 } from 'react-native';
@@ -19,9 +20,12 @@ import { useProductDetail } from '../../src/Hooks/useCatalog';
 import { useResponsive } from '../../src/Hooks/UseResponsive';
 import { useTheme } from '../../src/Context/ThemeContext';
 import { useCart } from '../../src/Context/CartContext';
+import { useFavoritesStore } from '../../src/store/favorites/favoritesStore';
 import { Skeleton } from '../../src/Components/Ui/Skeleton';
 import { ErrorState } from '../../src/Components/Ui/ErrorState';
 import { lightImpact } from '../../src/Utils/haptics';
+import { VariantSelectModal } from '../../src/Components/Modals/VariantSelectModal';
+import { PriceDetailModal } from '../../src/Components/Modals/PriceDetailModal';
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -31,8 +35,12 @@ export default function ProductDetailScreen() {
 
   const { data: product, isLoading, isError, refetch, isRefetching } = useProductDetail(id ?? null);
   const { addToCart, isInCart } = useCart();
+  const { toggleFavorite, isFavorite } = useFavoritesStore();
   const [imageError, setImageError] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [showPriceModal, setShowPriceModal] = useState(false);
+  const favorited = product ? isFavorite(product.id) : false;
 
   const handleBack = useCallback(() => { lightImpact(); router.back(); }, [router]);
   const showImage = product?.imageUrl && !imageError;
@@ -57,6 +65,12 @@ export default function ProductDetailScreen() {
     setTimeout(() => setJustAdded(false), 2000);
   }, [product, addToCart]);
 
+  const handleFavorite = useCallback(() => {
+    if (!product) return;
+    lightImpact();
+    toggleFavorite(product);
+  }, [product, toggleFavorite]);
+
   const Nav = () => (
     <SafeAreaView edges={['top']} style={{ backgroundColor: colors.background }}>
       <View style={[s.nav, { borderBottomColor: colors.divider }]}>
@@ -66,7 +80,15 @@ export default function ProductDetailScreen() {
         <Text style={[s.navTitle, { fontSize: calculateFontSize(17), color: colors.text }]} numberOfLines={1}>
           {product?.name ?? 'Ürün'}
         </Text>
-        <View style={s.navBtn} />
+        {product && (
+          <Pressable onPress={handleFavorite} style={s.navBtn} hitSlop={8}>
+            <Ionicons
+              name={favorited ? 'heart' : 'heart-outline'}
+              size={22}
+              color={favorited ? '#EF4444' : colors.text}
+            />
+          </Pressable>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -165,9 +187,15 @@ export default function ProductDetailScreen() {
 
           {product.variant && (
             <InfoItem label="Ayar / Malzeme" colors={colors}>
-              <View style={[s.pill, s.pillGold, { backgroundColor: GOLD + '14', borderColor: GOLD + '20' }]}>
-                <Text style={[s.pillGoldText, { color: GOLD }]}>{product.variant.name}</Text>
-              </View>
+              <TouchableOpacity
+                onPress={() => { lightImpact(); setShowVariantModal(true); }}
+                activeOpacity={0.75}
+              >
+                <View style={[s.pill, s.pillGold, { backgroundColor: GOLD + '14', borderColor: GOLD + '20' }]}>
+                  <Text style={[s.pillGoldText, { color: GOLD }]}>{product.variant.name}</Text>
+                  <Ionicons name="chevron-down" size={12} color={GOLD} />
+                </View>
+              </TouchableOpacity>
             </InfoItem>
           )}
 
@@ -186,9 +214,38 @@ export default function ProductDetailScreen() {
         </View>
       </ScrollView>
 
+      {/* Modallar */}
+      {product.variant && (
+        <VariantSelectModal
+          visible={showVariantModal}
+          variants={[product.variant]}
+          selectedVariant={product.variant}
+          product={product}
+          onSelect={() => {}}
+          onClose={() => setShowVariantModal(false)}
+          colors={colors}
+          isDark={isDark}
+        />
+      )}
+      <PriceDetailModal
+        visible={showPriceModal}
+        product={product}
+        onClose={() => setShowPriceModal(false)}
+        colors={colors}
+        isDark={isDark}
+      />
+
       {/* Sepete Ekle – Sabit alt bar */}
       <SafeAreaView edges={['bottom']} style={{ backgroundColor: colors.background }}>
         <View style={[s.bottomBar, { borderTopColor: colors.divider }]}>
+          {/* Fiyat detay butonu */}
+          <TouchableOpacity
+            onPress={() => { lightImpact(); setShowPriceModal(true); }}
+            style={[s.priceDetailBtn, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="bar-chart-outline" size={20} color={GOLD} />
+          </TouchableOpacity>
           <Animated.View style={[{ flex: 1 }, cartAnimStyle]}>
             <Pressable
               onPress={handleAddToCart}
@@ -224,6 +281,7 @@ export default function ProductDetailScreen() {
     </View>
   );
 }
+
 
 function InfoItem({ label, children, colors }: { label: string; children: React.ReactNode; colors: any }) {
   return (
@@ -287,7 +345,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10,
   },
   pillText: { fontSize: 13, fontWeight: '600' },
-  pillGold: { borderWidth: 1 },
+  pillGold: { borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
   pillGoldText: { fontSize: 13, fontWeight: '700' },
 
   descWrap: {
@@ -299,10 +357,18 @@ const s = StyleSheet.create({
 
   /* Bottom bar */
   bottomBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     paddingHorizontal: 20,
     paddingTop: 22,
     paddingBottom: 48,
     borderTopWidth: 1,
+  },
+  priceDetailBtn: {
+    width: 52, height: 52, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1,
   },
   addToCartBtn: {
     flexDirection: 'row',

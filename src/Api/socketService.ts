@@ -9,6 +9,7 @@
  */
 
 import { io, Socket } from 'socket.io-client';
+import { logger } from '../Utils/logger';
 
 const SOCKET_URL = 'https://socket.haremaltin.com:443';
 const DEBUG = __DEV__;
@@ -21,7 +22,7 @@ type PriceCallback = (data: any) => void;
 type StatusCallback = (status: SocketStatus) => void;
 
 function log(...args: unknown[]) {
-  if (DEBUG) console.log('[Socket]', ...args);
+  if (DEBUG) logger.info('[Socket]', ...args);
 }
 
 class HaremAltinSocket {

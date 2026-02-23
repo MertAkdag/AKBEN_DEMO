@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
-import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { View, Text, StyleSheet, Pressable, Platform, TouchableOpacity } from 'react-native';
+import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring, withSequence, withTiming } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Product } from '../../Types/catalog';
 import { useResponsive } from '../../Hooks/UseResponsive';
 import { useTheme } from '../../Context/ThemeContext';
 import { lightImpact } from '../../Utils/haptics';
+import { useFavoritesStore } from '../../store/favorites/favoritesStore';
 
 const AnimPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -19,6 +20,7 @@ interface Props {
 export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
   const { calculateFontSize } = useResponsive();
   const { colors, isDark } = useTheme();
+  const { toggleFavorite, isFavorite } = useFavoritesStore();
   const [imgErr, setImgErr] = useState(false);
   const scale = useSharedValue(1);
   const scaleStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -27,6 +29,21 @@ export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
   const cat = product.category?.name ?? '';
   const variant = product.variant?.name ?? '';
   const showImg = product.imageUrl && !imgErr;
+  const favorited = isFavorite(product.id);
+
+  /* Favori ikonu animasyonu */
+  const favScale = useSharedValue(1);
+  const favStyle = useAnimatedStyle(() => ({ transform: [{ scale: favScale.value }] }));
+
+  const handleFavoritePress = (e: any) => {
+    e.stopPropagation();
+    lightImpact();
+    toggleFavorite(product);
+    favScale.value = withSequence(
+      withSpring(1.3, { damping: 8, stiffness: 300 }),
+      withSpring(1, { damping: 12, stiffness: 200 }),
+    );
+  };
 
   return (
     <AnimPressable
@@ -59,6 +76,27 @@ export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
             </View>
           </View>
         )}
+        {/* Favori butonu — sol üst */}
+        <TouchableOpacity
+          onPress={handleFavoritePress}
+          style={[s.favBtn, {
+            backgroundColor: favorited ? '#EF4444' : colors.background + (isDark ? 'E6' : 'F0'),
+            ...Platform.select({
+              ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: favorited ? 0.3 : 0.15, shadowRadius: 4 },
+              android: { elevation: favorited ? 3 : 2 },
+            }),
+          }]}
+          activeOpacity={0.8}
+        >
+          <Animated.View style={favStyle}>
+            <Ionicons
+              name={favorited ? 'heart' : 'heart-outline'}
+              size={16}
+              color={favorited ? '#FFF' : colors.subtext}
+            />
+          </Animated.View>
+        </TouchableOpacity>
+        {/* Öne çıkan rozeti — sağ üst */}
         {product.featured && (
           <View style={[s.featBadge, {
             backgroundColor: GOLD,
@@ -104,6 +142,12 @@ const s = StyleSheet.create({
   placeholderIcon: {
     width: 56, height: 56, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
+  },
+  favBtn: {
+    position: 'absolute', top: 10, left: 10,
+    width: 32, height: 32, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
+    zIndex: 10,
   },
   featBadge: {
     position: 'absolute', top: 10, right: 10,

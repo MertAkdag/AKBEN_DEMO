@@ -1,3 +1,6 @@
+import { GOLD_PRICE_API_KEY } from '../Constants/env';
+import { logger } from '../Utils/logger';
+
 /**
  * Canlı finans verileri: Has Altın, USD, EUR
  *
@@ -11,7 +14,7 @@
 const HAREM_URL =
   'https://harem-altin-live-gold-price-data.p.rapidapi.com/harem_altin/prices/23b4c2fb31a242d1eebc0df9b9b65e5e';
 const HAREM_HEADERS: Record<string, string> = {
-  'x-rapidapi-key': '33497422c6msh3921ffcbf524722p179d0djsn8b9fbcdb7127',
+  'x-rapidapi-key': GOLD_PRICE_API_KEY,
   'x-rapidapi-host': 'harem-altin-live-gold-price-data.p.rapidapi.com',
 };
 const TRUNCGIL_URL = 'https://finans.truncgil.com/today.json';
@@ -44,7 +47,7 @@ export type GoldPriceResult = { price: number; isFallback: boolean };
    Yardımcılar
    ════════════════════════════════════════════ */
 function log(...args: unknown[]) {
-  if (DEBUG) console.log('[Finance]', ...args);
+  if (DEBUG) logger.info('[Finance]', ...args);
 }
 
 /** Türkçe karakterleri ASCII'ye normalize et */
@@ -114,6 +117,11 @@ const FALLBACK_ITEMS: FinanceItem[] = [
    Key'ler: "Has Altın", "GRAM ALTIN", "ONS", …
    ════════════════════════════════════════════ */
 async function fetchHaremGold(): Promise<{ gold: FinanceItem; ayar22: FinanceItem | null } | null> {
+  if (!GOLD_PRICE_API_KEY) {
+    log('Harem: RapidAPI anahtarı tanımlı değil, bu kaynak devre dışı.');
+    return null;
+  }
+
   try {
     log('Harem: istek atılıyor…');
     const res = await fetchWithTimeout(
