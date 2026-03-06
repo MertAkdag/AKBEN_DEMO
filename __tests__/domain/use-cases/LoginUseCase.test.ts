@@ -12,8 +12,13 @@ class MockAuthRepository implements IAuthRepository {
     const user: User = {
       id: 'u1',
       email,
+      userName: 'testuser',
+      firstName: 'Test',
+      lastName: 'Kullanıcı',
       name: 'Test Kullanıcı',
       role: 'ADMIN',
+      roles: ['ADMIN'],
+      isActive: true,
     };
     return {
       user,

@@ -226,7 +226,7 @@ export default function ChangePasswordScreen() {
                   <Button
                     title="Şifremi Güncelle"
                     onPress={handleSubmit}
-                    loading={loading}
+                    isLoading={loading}
                     fullWidth
                   />
                 </Animated.View>

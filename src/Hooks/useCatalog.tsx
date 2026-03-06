@@ -4,7 +4,7 @@ import { catalogService } from '../Api/catalogService';
 const catalogKeys = {
   all: ['catalog'] as const,
   categories: () => [...catalogKeys.all, 'categories'] as const,
-  products: (filters: { categoryId?: string; search?: string; page?: number }) =>
+  products: (filters: { categoryId?: number; search?: string; page?: number }) =>
     [...catalogKeys.all, 'products', filters] as const,
   product: (id: string) => [...catalogKeys.all, 'product', id] as const,
   featured: () => [...catalogKeys.all, 'featured'] as const,
@@ -19,10 +19,10 @@ export function useCategories() {
   });
 }
 
-export function useCatalogProducts(categoryId?: string, search = '', page = 1) {
+export function useCatalogProducts(categoryId?: number, search = '', page = 1) {
   return useQuery({
     queryKey: catalogKeys.products({ categoryId, search, page }),
-    queryFn: () => catalogService.getProducts(page, 20, categoryId, search || undefined),
+    queryFn: () => catalogService.getProducts(page, 20, categoryId != null ? String(categoryId) : undefined, search || undefined),
     staleTime: 1000 * 60 * 2,
   });
 }

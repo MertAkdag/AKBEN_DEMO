@@ -27,7 +27,7 @@ export default function CatalogScreen() {
   const router = useRouter();
   const { calculateFontSize } = useResponsive();
   const { colors } = useTheme();
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: categories } = useCategories();
@@ -53,11 +53,11 @@ export default function CatalogScreen() {
       >
         <TouchableOpacity
           style={[s.chip, { backgroundColor: colors.card, borderColor: colors.border },
-            !selectedCategoryId && { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}
+          !selectedCategoryId && { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}
           onPress={() => setSelectedCategoryId(undefined)}
         >
           <Text style={[s.chipText, { fontSize: calculateFontSize(13), color: colors.subtext },
-            !selectedCategoryId && { color: colors.primary }]}>
+          !selectedCategoryId && { color: colors.primary }]}>
             Tümü
           </Text>
         </TouchableOpacity>
@@ -65,11 +65,11 @@ export default function CatalogScreen() {
           <TouchableOpacity
             key={cat.id}
             style={[s.chip, { backgroundColor: colors.card, borderColor: colors.border },
-              selectedCategoryId === cat.id && { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}
+            selectedCategoryId === cat.id && { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}
             onPress={() => setSelectedCategoryId(cat.id)}
           >
             <Text style={[s.chipText, { fontSize: calculateFontSize(13), color: colors.subtext },
-              selectedCategoryId === cat.id && { color: colors.primary }]}>
+            selectedCategoryId === cat.id && { color: colors.primary }]}>
               {cat.name}
             </Text>
           </TouchableOpacity>
@@ -77,7 +77,7 @@ export default function CatalogScreen() {
       </ScrollView>
 
       {/* Arama */}
-      <SearchInput value={searchQuery} onChangeText={setSearchQuery} placeholder="Ürün ara..." />
+      <SearchInput value={searchQuery} onChangeText={setSearchQuery} placeholder="Ürün ara..." activeFilterCount={2}/>
     </>
   );
 

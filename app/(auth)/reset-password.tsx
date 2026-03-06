@@ -148,7 +148,7 @@ export default function ResetPasswordScreen() {
                 <Button
                   title="Şifremi Güncelle"
                   onPress={handleReset}
-                  loading={loading}
+                  isLoading={loading}
                   fullWidth
                   style={{ marginTop: 4 }}
                 />

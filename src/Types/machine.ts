@@ -13,9 +13,9 @@ export interface Machine {
 }
 
 export interface Pagination {
-  totalCount: number;
+  total: number;
+  limit: number;
   currentPage: number;
-  pageSize: number;
   totalPages: number;
   hasNextPage: boolean;
   hasPreviousPage: boolean;

@@ -78,14 +78,14 @@ export const MOCK_PERFORMANCE: PerformanceData[] = [
   { id: 'p15', machineId: 'm1', timestamp: now, metricValue: 55, createdAt: now },
 ];
 
-const pagination = (total: number, page: number, pageSize: number) => ({
-  totalCount: total,
+const pagination = (total: number, page: number, limit: number) => ({
+  total,
+  limit,
   currentPage: page,
-  pageSize,
-  totalPages: Math.ceil(total / pageSize),
-  hasNextPage: page * pageSize < total,
+  totalPages: Math.ceil(total / limit),
+  hasNextPage: page * limit < total,
   hasPreviousPage: page > 1,
-  nextPage: page * pageSize < total ? page + 1 : null,
+  nextPage: page * limit < total ? page + 1 : null,
   previousPage: page > 1 ? page - 1 : null,
 });
 
@@ -188,8 +188,11 @@ export function createMockCari(payload: CreateCariPayload): Cari {
   return newCari;
 }
 
-/** CATALOG: Kategoriler – AKBEN yapısına uygun (Bileklik, Kelepçe, Yüzük, Küpe) */
-const MOCK_CATEGORIES: Category[] = [
+/** CATALOG: Kategoriler – AKBEN yapısına uygun (Bileklik, Kelepçe, Yüzük, Küpe)
+ * NOT: Bu mock veriler artık sadece gerçek API'ye henüz bağlanmamış servisler tarafından kullanılıyor.
+ * catalogService gerçek API'den veri çekiyor.
+ */
+const MOCK_CATEGORIES: any[] = [
   { id: 'cat1', name: 'Bileklik', slug: 'bileklik', productCount: 4 },
   { id: 'cat2', name: 'Yüzük', slug: 'yuzuk', productCount: 3 },
   { id: 'cat3', name: 'Kolye', slug: 'kolye', productCount: 0 },
@@ -199,20 +202,20 @@ const MOCK_CATEGORIES: Category[] = [
   { id: 'cat7', name: 'Kelepçe', slug: 'klepce', productCount: 3 },
 ];
 
-const MOCK_VARIANTS: Variant[] = [
+const MOCK_VARIANTS: any[] = [
   { id: 'v1', name: '14 Ayar', slug: '14k' },
   { id: 'v2', name: '18 Ayar', slug: '18k' },
   { id: 'v3', name: '22 Ayar', slug: '22k' },
   { id: 'v4', name: '925 Gümüş', slug: '925' },
 ];
 
-const MOCK_BRANDS: Brand[] = [
+const MOCK_BRANDS: any[] = [
   { id: 'b1', name: 'Atölye' },
   { id: 'b2', name: 'Klasik' },
   { id: 'b3', name: 'Modern' },
 ];
 
-const MOCK_UNITS: Unit[] = [
+const MOCK_UNITS: any[] = [
   { id: 'u1', name: 'Adet', symbol: 'ad' },
   { id: 'u2', name: 'Gram', symbol: 'gr' },
 ];
@@ -221,7 +224,7 @@ const MOCK_UNITS: Unit[] = [
 const AKBEN_IMG = 'https://akbenkuyumculuk.com/wp-content/uploads/2023/10';
 
 /** Ürün isimleri ve kategorileri AKBEN fotoğraflarına göre (bileklik, kelepce, yuzuk, kupe) */
-const MOCK_PRODUCTS: Product[] = [
+const MOCK_PRODUCTS: any[] = [
   { id: 'p1', name: 'Bileklik', description: 'El işi has örgü, 22 ayar sarı altın.', categoryId: 'cat1', variantId: 'v3', brandId: 'b1', unitId: 'u2', pricePerUnit: 2850, featured: true, imageUrl: `${AKBEN_IMG}/akben_bileklik_1.png`, createdAt: now, updatedAt: now },
   { id: 'p2', name: 'Bileklik', description: 'Minimal çift bileklik seti, 22 ayar altın.', categoryId: 'cat1', variantId: 'v3', brandId: 'b2', unitId: 'u1', pricePerUnit: 4200, featured: true, imageUrl: `${AKBEN_IMG}/akben_bileklik_2.png`, createdAt: now, updatedAt: now },
   { id: 'p3', name: 'Kelepçe', description: 'Pırlanta taşlı kelepçe, 22 ayar.', categoryId: 'cat7', variantId: 'v3', brandId: 'b3', unitId: 'u1', pricePerUnit: 12500, featured: false, imageUrl: `${AKBEN_IMG}/akben_kelepce_4.png`, createdAt: now, updatedAt: now },
@@ -237,7 +240,7 @@ const MOCK_PRODUCTS: Product[] = [
   { id: 'p13', name: 'Set', description: 'Düğün seti küpe, 22 ayar.', categoryId: 'cat6', variantId: 'v3', brandId: 'b3', unitId: 'u1', pricePerUnit: 15800, featured: true, imageUrl: `${AKBEN_IMG}/akben_kupe_3.png`, createdAt: now, updatedAt: now },
 ];
 
-function attachCatalogRelations(products: Product[]): Product[] {
+function attachCatalogRelations(products: any[]): any[] {
   return products.map((p) => ({
     ...p,
     category: MOCK_CATEGORIES.find((c) => c.id === p.categoryId),
@@ -247,11 +250,11 @@ function attachCatalogRelations(products: Product[]): Product[] {
   }));
 }
 
-export function getMockCategories(): Category[] {
+export function getMockCategories(): any[] {
   return MOCK_CATEGORIES;
 }
 
-export function getMockProducts(page = 1, pageSize = 20, categoryId?: string, search?: string): { success: boolean; data: Product[]; meta: { pagination: ReturnType<typeof pagination> } } {
+export function getMockProducts(page = 1, pageSize = 20, categoryId?: string, search?: string): { success: boolean; data: any[]; meta: { pagination: ReturnType<typeof pagination> } } {
   let list = [...MOCK_PRODUCTS];
   if (categoryId) list = list.filter((p) => p.categoryId === categoryId);
   if (search?.trim()) {
@@ -268,14 +271,14 @@ export function getMockProducts(page = 1, pageSize = 20, categoryId?: string, se
   };
 }
 
-export function getMockProductById(id: string): { success: boolean; data: Product } | null {
+export function getMockProductById(id: string): { success: boolean; data: any } | null {
   const product = MOCK_PRODUCTS.find((p) => p.id === id);
   if (!product) return null;
   const [withRelations] = attachCatalogRelations([product]);
   return { success: true, data: withRelations };
 }
 
-export function getMockFeaturedProducts(): Product[] {
+export function getMockFeaturedProducts(): any[] {
   return attachCatalogRelations(MOCK_PRODUCTS.filter((p) => p.featured));
 }
 

@@ -17,9 +17,9 @@ export interface TransactionsResponse {
   data: Transaction[];
   meta?: {
     pagination: {
-      totalCount: number;
+      total: number;
+      limit: number;
       currentPage: number;
-      pageSize: number;
       totalPages: number;
       hasNextPage: boolean;
       hasPreviousPage: boolean;

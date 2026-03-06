@@ -191,7 +191,7 @@ export default function ProfileEditScreen() {
               <Button
                 title="Değişiklikleri Kaydet"
                 onPress={handleSave}
-                loading={loading}
+                isLoading={loading}
                 fullWidth
                 style={{ marginBottom: 12 }}
               />

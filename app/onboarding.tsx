@@ -16,6 +16,7 @@ import Animated, {
   withSpring,
   interpolate,
   Extrapolation,
+  SharedValue,
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -66,7 +67,7 @@ function Dot({
   color,
 }: {
   index: number;
-  activeIndex: Animated.SharedValue<number>;
+  activeIndex: SharedValue<number>;
   color: string;
 }) {
   const style = useAnimatedStyle(() => {

@@ -2,17 +2,41 @@ import { CartItem } from '../../../src/domain/entities/CartItem';
 import type { Product } from '../../../src/Types/catalog';
 import { CheckoutUseCase, type PriceService } from '../../../src/domain/use-cases/cart/CheckoutUseCase';
 
-const baseProduct: Product = {
+const baseProduct = {
   id: 'p1',
   name: 'Altın Yüzük',
+  urunAdi: 'Altın Yüzük',
+  urunKodu: 'TST-002',
   description: 'Test ürün',
-  categoryId: 'c1',
-  variantId: 'v1',
-  unitId: 'u1',
+  categoryId: '1',
+  kategoriId: 1,
+  markaId: 1,
+  birimId: 1,
+  variantId: '',
+  unitId: '1',
   pricePerUnit: 100,
+  satisFiyati: 100,
+  alisFiyati: 80,
+  agirlikGr: 5,
+  kdvOrani: 0,
+  iscilikMilyem: 0,
+  iscilikAdet: 0,
+  iscilikTipi: 'MILYEM',
+  milyemKatsayisi: 0,
+  karMarjOrani: 0,
+  karMilyem: 0,
+  tasAgirlikGr: 0,
+  minStokSeviyesi: 0,
+  maxStokSeviyesi: 0,
+  kritikStokSeviyesi: 0,
+  aktifMi: true,
+  katalogdaGoster: false,
+  yeni: false,
+  indirimli: false,
+  images: [],
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-};
+} as Product;
 
 class MockPriceService implements PriceService {
   constructor(private price: number) {}

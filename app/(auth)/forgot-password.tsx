@@ -141,7 +141,7 @@ export default function ForgotPasswordScreen() {
                 <Button
                   title="Sıfırlama Linki Gönder"
                   onPress={handleSend}
-                  loading={loading}
+                  isLoading={loading}
                   fullWidth
                   style={{ marginTop: 4 }}
                 />
