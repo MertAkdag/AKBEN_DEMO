@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,8 +22,7 @@ const { width: SW } = Dimensions.get('window');
 const CARD_WIDTH = SW - 40;
 const CARD_GAP = 12;
 const IMG_SIZE = 140;
-
-const AnimPressable = Animated.createAnimatedComponent(Pressable);
+const MAX_WEEK_PRODUCTS = 5;
 
 interface ProductOfWeekSliderProps {
   products: Product[];
@@ -47,31 +46,31 @@ function ProductCard({ product, index, colors, isDark, onPress }: {
   const desc = product.description ?? '';
 
   return (
-    <AnimPressable
-      entering={FadeInDown.duration(450).delay(index * 80).springify()}
-      style={[
-        s.card,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.cardBorder,
-          ...Platform.select({
-            ios: {
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: isDark ? 0.22 : 0.08,
-              shadowRadius: 14,
-            },
-            android: { elevation: 6 },
-          }),
-        },
-        scaleStyle,
-      ]}
-      onPressIn={() => { scale.value = withSpring(0.98, { damping: 18, stiffness: 400 }); lightImpact(); }}
-      onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 400 }); }}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${product.name} - İncele`}
-    >
+    <Animated.View entering={FadeInDown.duration(450).delay(index * 80).springify()}>
+      <Pressable
+        style={[
+          s.card,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.cardBorder,
+            ...Platform.select({
+              ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: isDark ? 0.22 : 0.08,
+                shadowRadius: 14,
+              },
+              android: { elevation: 6 },
+            }),
+          },
+        ]}
+        onPressIn={() => { scale.value = withSpring(0.98, { damping: 18, stiffness: 400 }); lightImpact(); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 400 }); }}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${product.name} - İncele`}
+      >
+        <Animated.View style={[s.cardScaleInner, scaleStyle]}>
       {/* Sol: görsel */}
       <View style={[s.imgBox, { backgroundColor: isDark ? '#252525' : '#F0EDEA' }]}>
         {product.imageUrl ? (
@@ -121,7 +120,9 @@ function ProductCard({ product, index, colors, isDark, onPress }: {
           </View>
         </View>
       </View>
-    </AnimPressable>
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -132,6 +133,10 @@ export function ProductOfWeekSlider({ products, isLoading }: ProductOfWeekSlider
   const [page, setPage] = useState(0);
   const flatRef = useRef<FlatList>(null);
   const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const limitedProducts = useMemo(
+    () => (products?.length ? products.slice(0, MAX_WEEK_PRODUCTS) : []),
+    [products],
+  );
 
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offset = e.nativeEvent.contentOffset.x;
@@ -143,10 +148,10 @@ export function ProductOfWeekSlider({ products, isLoading }: ProductOfWeekSlider
   }, [page]);
 
   const startAutoScroll = useCallback(() => {
-    if (products.length <= 1) return;
+    if (limitedProducts.length <= 1) return;
     autoScrollRef.current = setInterval(() => {
       setPage((prev) => {
-        const next = (prev + 1) % products.length;
+        const next = (prev + 1) % limitedProducts.length;
         flatRef.current?.scrollToOffset({
           offset: next * (CARD_WIDTH + CARD_GAP),
           animated: true,
@@ -154,7 +159,7 @@ export function ProductOfWeekSlider({ products, isLoading }: ProductOfWeekSlider
         return next;
       });
     }, 4500);
-  }, [products.length]);
+  }, [limitedProducts.length]);
 
   const stopAutoScroll = useCallback(() => {
     if (autoScrollRef.current) {
@@ -173,7 +178,7 @@ export function ProductOfWeekSlider({ products, isLoading }: ProductOfWeekSlider
     router.push(`/catalog/${id}`);
   }, [router]);
 
-  if (isLoading || !products?.length) return null;
+  if (isLoading || !limitedProducts.length) return null;
 
   return (
     <Animated.View entering={FadeInDown.duration(500).delay(120).springify()} style={s.wrapper}>
@@ -193,7 +198,7 @@ export function ProductOfWeekSlider({ products, isLoading }: ProductOfWeekSlider
       {/* Slider */}
       <FlatList
         ref={flatRef}
-        data={products}
+        data={limitedProducts}
         keyExtractor={(item) => item.id}
         horizontal
         pagingEnabled={false}
@@ -219,7 +224,7 @@ export function ProductOfWeekSlider({ products, isLoading }: ProductOfWeekSlider
 
       {/* Sayfa göstergeleri */}
       <View style={s.dotsRow}>
-        {products.map((_, i) => (
+        {limitedProducts.map((_, i) => (
           <View
             key={i}
             style={[
@@ -263,10 +268,15 @@ const s = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
     height: IMG_SIZE,
-    flexDirection: 'row',
     borderRadius: 22,
     overflow: 'hidden',
     borderWidth: 1,
+  },
+  cardScaleInner: {
+    flex: 1,
+    flexDirection: 'row',
+    width: '100%',
+    height: '100%',
   },
 
   /* Sol: görsel kutusu */

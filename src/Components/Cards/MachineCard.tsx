@@ -8,8 +8,6 @@ import { useResponsive } from '../../Hooks/UseResponsive';
 import { useTheme } from '../../Context/ThemeContext';
 import { lightImpact } from '../../Utils/haptics';
 
-const AnimPressable = Animated.createAnimatedComponent(Pressable);
-
 interface Props {
   machine: Machine;
   onPress: () => void;
@@ -26,21 +24,22 @@ export const MachineCard = ({ machine, onPress, index = 0 }: Props) => {
   const statusLabel = getStatusText(machine.status);
 
   return (
-    <AnimPressable
-      entering={FadeInDown.duration(400).delay(index * 50).springify()}
-      style={[s.card, {
-        backgroundColor: colors.card,
-        borderColor: colors.cardBorder,
-        ...Platform.select({
-          ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0.15 : 0.06, shadowRadius: 10 },
-          android: { elevation: 4 },
-        }),
-      }, scaleStyle]}
-      onPressIn={() => { scale.value = withSpring(0.97, { damping: 15, stiffness: 300 }); lightImpact(); }}
-      onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
-      onPress={onPress}
-      accessibilityRole="button"
-    >
+    <Animated.View entering={FadeInDown.duration(400).delay(index * 50).springify()}>
+      <Pressable
+        style={[s.card, {
+          backgroundColor: colors.card,
+          borderColor: colors.cardBorder,
+          ...Platform.select({
+            ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0.15 : 0.06, shadowRadius: 10 },
+            android: { elevation: 4 },
+          }),
+        }]}
+        onPressIn={() => { scale.value = withSpring(0.97, { damping: 15, stiffness: 300 }); lightImpact(); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
+        onPress={onPress}
+        accessibilityRole="button"
+      >
+        <Animated.View style={[s.cardScaleInner, scaleStyle]}>
       <View style={s.top}>
         <View style={[s.machineIcon, { backgroundColor: color + '12', borderColor: color + '20' }]}>
           <Ionicons name="cog" size={20} color={color} />
@@ -73,14 +72,16 @@ export const MachineCard = ({ machine, onPress, index = 0 }: Props) => {
       </View>
 
       <View style={[s.accentBar, { backgroundColor: color }]} />
-    </AnimPressable>
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
   );
 };
 
 const s = StyleSheet.create({
+  cardScaleInner: { flex: 1, padding: 16 },
   card: {
     borderRadius: 20,
-    padding: 16,
     marginBottom: 10,
     overflow: 'hidden',
     borderWidth: 1,

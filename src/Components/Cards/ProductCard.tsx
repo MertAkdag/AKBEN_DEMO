@@ -9,8 +9,6 @@ import { useTheme } from '../../Context/ThemeContext';
 import { lightImpact } from '../../Utils/haptics';
 import { useFavoritesStore } from '../../store/favorites/favoritesStore';
 
-const AnimPressable = Animated.createAnimatedComponent(Pressable);
-
 interface Props {
   product: Product;
   onPress: () => void;
@@ -46,23 +44,27 @@ export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
   };
 
   return (
-    <AnimPressable
+    <Animated.View
       entering={FadeInDown.duration(400).delay(index * 60).springify()}
-      style={[s.card, {
-        backgroundColor: colors.card,
-        borderColor: colors.cardBorder,
-        ...Platform.select({
-          ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0.18 : 0.08, shadowRadius: 12 },
-          android: { elevation: 5 },
-        }),
-      }, scaleStyle]}
-      onPressIn={() => { scale.value = withSpring(0.96, { damping: 15, stiffness: 300 }); lightImpact(); }}
-      onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
-      onPress={onPress}
-      accessibilityRole="button"
+      style={s.cardOuter}
     >
-      <View style={[s.imgWrap, { backgroundColor: colors.background }]}>
-        {showImg ? (
+      <Pressable
+        style={[s.card, {
+          backgroundColor: colors.card,
+          borderColor: colors.cardBorder,
+          ...Platform.select({
+            ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0.18 : 0.08, shadowRadius: 12 },
+            android: { elevation: 5 },
+          }),
+        }]}
+        onPressIn={() => { scale.value = withSpring(0.96, { damping: 15, stiffness: 300 }); lightImpact(); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
+        onPress={onPress}
+        accessibilityRole="button"
+      >
+        <Animated.View style={[s.cardScaleInner, scaleStyle]}>
+        <View style={[s.imgWrap, { backgroundColor: isDark ? colors.card : '#F7F5F0' }]}>
+          {showImg ? (
           <Image
             source={{ uri: product.imageUrl }}
             style={s.img}
@@ -105,7 +107,11 @@ export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
               android: { elevation: 4 },
             }),
           }]}>
-            <Ionicons name="star" size={10} color={colors.background} />
+            <View style={{ backgroundColor: GOLD, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 }}>
+              <Text style={{ color: colors.background, fontSize: 9, fontWeight: '600', letterSpacing: 0.4 }}>
+                ÖNE ÇIKAN
+              </Text>
+            </View>
           </View>
         )}
       </View>
@@ -118,24 +124,32 @@ export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
           {product.name}
         </Text>
         {variant ? (
-          <View style={[s.variantPill, { backgroundColor: GOLD + '12', borderColor: GOLD + '18' }]}>
+          <View style={[s.variantPill, { borderRadius: 20,            // pill
+            borderWidth: 0.5,            // 1 yerine
+            backgroundColor: 'transparent', // GOLD+'12' yerine
+            }]}>
             <Text style={[s.variantText, { color: GOLD }]}>{variant}</Text>
           </View>
         ) : null}
       </View>
-    </AnimPressable>
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
   );
 };
 
 const s = StyleSheet.create({
-  card: {
+  cardOuter: {
     flex: 1,
     maxWidth: '48%',
+    marginBottom: 12,
+  },
+  card: {
+    flex: 1,
     borderRadius: 22,
     overflow: 'hidden',
-    marginBottom: 12,
-    borderWidth: 1,
   },
+  cardScaleInner: { flex: 1 },
   imgWrap: { aspectRatio: 1, position: 'relative' },
   img: { width: '100%', height: '100%' },
   placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -144,8 +158,9 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   favBtn: {
+
     position: 'absolute', top: 10, left: 10,
-    width: 32, height: 32, borderRadius: 10,
+    width: 32, height: 32, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
     zIndex: 10,
   },
@@ -156,12 +171,13 @@ const s = StyleSheet.create({
   },
   content: { padding: 14 },
   catTag: {
-    fontSize: 10, fontWeight: '700',
-    letterSpacing: 0.8, textTransform: 'uppercase',
+    fontSize: 10, fontWeight: '600',
+    letterSpacing: 1.2, textTransform: 'uppercase',
     marginBottom: 4, opacity: 0.8,
   },
   name: {
-    fontWeight: '700',
+    fontWeight: '500',
+    letterSpacing: -0.2,
     lineHeight: 20,
     marginBottom: 8,
   },

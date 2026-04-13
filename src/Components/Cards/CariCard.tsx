@@ -7,8 +7,6 @@ import { useResponsive } from '../../Hooks/UseResponsive';
 import { useTheme } from '../../Context/ThemeContext';
 import { lightImpact } from '../../Utils/haptics';
 
-const AnimPressable = Animated.createAnimatedComponent(Pressable);
-
 interface Props {
   cari: Cari;
   onPress: () => void;
@@ -34,21 +32,22 @@ export const CariCard = ({ cari, onPress, index = 0 }: Props) => {
     .toUpperCase();
 
   return (
-    <AnimPressable
-      entering={FadeInDown.duration(400).delay(index * 50).springify()}
-      style={[s.card, {
-        backgroundColor: colors.card,
-        borderColor: colors.cardBorder,
-        ...Platform.select({
-          ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0.15 : 0.06, shadowRadius: 10 },
-          android: { elevation: 4 },
-        }),
-      }, scaleStyle]}
-      onPressIn={() => { scale.value = withSpring(0.97, { damping: 15, stiffness: 300 }); lightImpact(); }}
-      onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
-      onPress={onPress}
-      accessibilityRole="button"
-    >
+    <Animated.View entering={FadeInDown.duration(400).delay(index * 50).springify()}>
+      <Pressable
+        style={[s.card, {
+          backgroundColor: colors.card,
+          borderColor: colors.cardBorder,
+          ...Platform.select({
+            ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0.15 : 0.06, shadowRadius: 10 },
+            android: { elevation: 4 },
+          }),
+        }]}
+        onPressIn={() => { scale.value = withSpring(0.97, { damping: 15, stiffness: 300 }); lightImpact(); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
+        onPress={onPress}
+        accessibilityRole="button"
+      >
+        <Animated.View style={[s.cardScaleInner, scaleStyle]}>
       <View style={s.top}>
         <View style={[s.avatar, { backgroundColor: accent + '14', borderColor: accent + '25' }]}>
           <Text style={[s.avatarText, { color: accent }]}>{initials}</Text>
@@ -80,14 +79,16 @@ export const CariCard = ({ cari, onPress, index = 0 }: Props) => {
       ) : null}
 
       <View style={[s.accentBar, { backgroundColor: accent }]} />
-    </AnimPressable>
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
   );
 };
 
 const s = StyleSheet.create({
+  cardScaleInner: { flex: 1, padding: 16 },
   card: {
     borderRadius: 20,
-    padding: 16,
     marginBottom: 10,
     overflow: 'hidden',
     borderWidth: 1,

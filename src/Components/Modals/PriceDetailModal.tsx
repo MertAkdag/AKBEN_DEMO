@@ -15,7 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import type { Product } from '../../Types/catalog';
@@ -76,7 +76,7 @@ function buildPriceRows(product: Product, goldPrice?: number): PriceRow[] {
 
   rows.push({
     label: 'KDV',
-    value: '%0 (B2B)',
+    value: `%${product.kdvOrani.toFixed(2)}`,
     icon: 'receipt-outline',
     color: '#10B981',
   });
@@ -101,7 +101,8 @@ export function PriceDetailModal({ visible, product, onClose, colors, isDark, go
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
 
         <Animated.View
-          entering={SlideInDown.springify().damping(20).stiffness(200)}
+            entering={SlideInDown.duration(400).springify()}
+            exiting={SlideOutDown.duration(250).springify()}
           style={[
             styles.sheet,
             {
