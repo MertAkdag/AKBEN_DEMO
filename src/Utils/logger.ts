@@ -1,17 +1,22 @@
+import { DEBUG_LOGS } from '../Constants/env';
+
 const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
+
+/** Metro / cihaz loglarında console.info bazen filtrelenir; log daha görünür olsun */
+const shouldLogVerbose = isDev || DEBUG_LOGS;
 
 class Logger {
   info(...args: unknown[]) {
-    if (isDev) {
+    if (shouldLogVerbose) {
       // eslint-disable-next-line no-console
-      console.info('[INFO]', ...args);
+      console.log('[INFO]', ...args);
     }
   }
 
   warn(...args: unknown[]) {
-    if (isDev) {
+    if (shouldLogVerbose) {
       // eslint-disable-next-line no-console
-      console.warn('[WARN]', ...args);
+      console.log('[WARN]', ...args);
     }
   }
 
