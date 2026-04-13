@@ -100,11 +100,15 @@ export default function ModernStoryViewer({ isVisible, userStory, onClose }: Pro
           <Animated.View style={[styles.storyContainer, animatedContainerStyle]}>
             
             {/* Arka Plan Medyası */}
-            <Image 
+            {
+              currentMedia && currentMedia.source && (
+                <Image 
               source={{ uri: currentMedia.source.uri }} 
               style={styles.media} 
               contentFit="cover" 
             />
+              )
+            }
 
             {/* Üst Kısım: Progress Bar ve Kullanıcı Bilgisi */}
             <View style={styles.header}>

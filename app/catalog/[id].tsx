@@ -8,12 +8,15 @@ import {
   TouchableOpacity,
   RefreshControl,
   Platform,
+  FlatList,
+  Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { useSharedValue, useAnimatedStyle, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSequence, withSpring } from 'react-native-reanimated';
+import ImageView from 'react-native-image-viewing'; // EKLENDİ: Tam ekran zoom için
 
 import { Spacing } from '../../src/Constants/Spacing';
 import { useProductDetail } from '../../src/Hooks/useCatalog';
@@ -27,6 +30,22 @@ import { lightImpact } from '../../src/Utils/haptics';
 import { VariantSelectModal } from '../../src/Components/Modals/VariantSelectModal';
 import { PriceDetailModal } from '../../src/Components/Modals/PriceDetailModal';
 
+// --- Ekran Genişliği Hesaplaması (Slider'ın tam oturması için) ---
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const PADDING_HORIZONTAL = 20;
+const IMAGE_BOX_WIDTH = SCREEN_WIDTH - (PADDING_HORIZONTAL * 2);
+
+// --- Yardımcı Fonksiyon (Kod Tekrarını Önler) ---
+const getShadowStyle = (isDark: boolean, shadowColor = '#000', elevation = 4) => Platform.select({
+  ios: { 
+    shadowColor, 
+    shadowOffset: { width: 0, height: elevation }, 
+    shadowOpacity: isDark ? 0.2 : 0.08, 
+    shadowRadius: elevation * 2 
+  },
+  android: { elevation },
+});
+
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -36,16 +55,33 @@ export default function ProductDetailScreen() {
   const { data: product, isLoading, isError, refetch, isRefetching } = useProductDetail(id ?? null);
   const { addToCart, isInCart } = useCart();
   const { toggleFavorite, isFavorite } = useFavoritesStore();
-  const [imageError, setImageError] = useState(false);
+  
+  // Slider ve Viewer Stateleri
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isViewerVisible, setIsViewerVisible] = useState(false);
+  
   const [justAdded, setJustAdded] = useState(false);
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [showPriceModal, setShowPriceModal] = useState(false);
   const favorited = product ? isFavorite(product.id) : false;
 
   const handleBack = useCallback(() => { lightImpact(); router.back(); }, [router]);
-  const showImage = product?.imageUrl && !imageError;
   const GOLD = colors.catalogGold;
   const alreadyInCart = product ? isInCart(product.id) : false;
+
+  // Fotoğraf verisini güvene al (Backend'den string veya array gelebilir)
+  const productImages = product?.images?.length 
+    ? product.images 
+    : (product?.imageUrl ? [{ uri: product.imageUrl }] : []);
+
+  // Slider kaydırıldıkça aşağıdaki noktaları güncelle
+  const handleScroll = useCallback((event: any) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const index = Math.round(event.nativeEvent.contentOffset.x / slideSize);
+    if (index !== activeImageIndex) {
+      setActiveImageIndex(index);
+    }
+  }, [activeImageIndex]);
 
   /* Sepete ekle animasyonu */
   const cartScale = useSharedValue(1);
@@ -63,7 +99,7 @@ export default function ProductDetailScreen() {
       withSpring(1, { damping: 12, stiffness: 300 }),
     );
     setTimeout(() => setJustAdded(false), 2000);
-  }, [product, addToCart]);
+  }, [product, addToCart, cartScale]);
 
   const handleFavorite = useCallback(() => {
     if (!product) return;
@@ -71,7 +107,7 @@ export default function ProductDetailScreen() {
     toggleFavorite(product);
   }, [product, toggleFavorite]);
 
-  const Nav = () => (
+  const renderNav = () => (
     <SafeAreaView edges={['top']} style={{ backgroundColor: colors.background }}>
       <View style={[s.nav, { borderBottomColor: colors.divider }]}>
         <Pressable onPress={handleBack} style={s.navBtn} hitSlop={8}>
@@ -97,9 +133,9 @@ export default function ProductDetailScreen() {
     return (
       <View style={[s.container, { backgroundColor: colors.background }]}>
         <Stack.Screen options={{ headerShown: false }} />
-        <Nav />
-        <View style={{ padding: 20 }}>
-          <Skeleton width="100%" height={280} style={{ borderRadius: 24, marginBottom: 20 }} />
+        {renderNav()}
+        <View style={{ padding: PADDING_HORIZONTAL }}>
+          <Skeleton width="100%" height={IMAGE_BOX_WIDTH} style={{ borderRadius: 24, marginBottom: 20 }} />
           <Skeleton width="60%" height={22} style={{ marginBottom: 12 }} />
           <Skeleton width="40%" height={16} style={{ marginBottom: 20 }} />
           <Skeleton width="100%" height={100} style={{ borderRadius: 20 }} />
@@ -112,7 +148,7 @@ export default function ProductDetailScreen() {
     return (
       <View style={[s.container, { backgroundColor: colors.background }]}>
         <Stack.Screen options={{ headerShown: false }} />
-        <Nav />
+        {renderNav()}
         <ErrorState message="Ürün bulunamadı" onRetry={() => refetch()} />
       </View>
     );
@@ -121,7 +157,7 @@ export default function ProductDetailScreen() {
   return (
     <View style={[s.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
-      <Nav />
+      {renderNav()}
 
       <ScrollView
         style={{ flex: 1 }}
@@ -131,22 +167,55 @@ export default function ProductDetailScreen() {
           <RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} tintColor={GOLD} colors={[GOLD]} />
         }
       >
-        {/* Image */}
+        {/* YENİ FOTOĞRAF ALANI (SLIDER) */}
         <View style={s.imgWrap}>
           <View style={[s.imgBox, {
             backgroundColor: colors.card, borderColor: colors.cardBorder,
-            ...Platform.select({
-              ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: isDark ? 0.2 : 0.08, shadowRadius: 14 },
-              android: { elevation: 6 },
-            }),
+            ...getShadowStyle(isDark, '#000', 4)
           }]}>
-            {showImage ? (
-              <Image
-                source={{ uri: product.imageUrl }}
-                style={s.img}
-                contentFit="contain"
-                onError={() => setImageError(true)}
-              />
+            {productImages.length > 0 ? (
+              <>
+                <FlatList
+                  data={productImages as any}
+                  keyExtractor={(_, index) => index.toString()}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={handleScroll}
+                  scrollEventThrottle={16} // Pürüzsüz kaydırma için önemli
+                  renderItem={({ item, index }) => (
+                    <Pressable 
+                      onPress={() => {
+                        lightImpact();
+                        setActiveImageIndex(index);
+                        setIsViewerVisible(true);
+                      }}
+                      style={{ width: IMAGE_BOX_WIDTH, height: IMAGE_BOX_WIDTH }}
+                    >
+                      <Image
+                        source={{ uri: item.url || item.url }}
+                        style={s.img}
+                        contentFit="contain"
+                      />
+                    </Pressable>
+                  )}
+                />
+                
+                {/* Çoklu fotoğraf varsa noktaları göster (Pagination) */}
+                {productImages.length > 1 && (
+                  <View style={s.paginationContainer}>
+                    {productImages.map((_, i) => (
+                      <View 
+                        key={i} 
+                        style={[
+                          s.dot, 
+                          activeImageIndex === i ? [s.dotActive, { backgroundColor: GOLD }] : { backgroundColor: colors.divider }
+                        ]} 
+                      />
+                    ))}
+                  </View>
+                )}
+              </>
             ) : (
               <View style={s.placeholder}>
                 <View style={[s.placeholderCircle, { backgroundColor: GOLD + '0A' }]}>
@@ -155,13 +224,11 @@ export default function ProductDetailScreen() {
               </View>
             )}
           </View>
+
           {product.featured && (
             <View style={[s.featBadge, {
               backgroundColor: GOLD,
-              ...Platform.select({
-                ios: { shadowColor: GOLD, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.4, shadowRadius: 8 },
-                android: { elevation: 4 },
-              }),
+              ...getShadowStyle(false, GOLD, 2)
             }]}>
               <Ionicons name="star" size={12} color={colors.background} />
               <Text style={[s.featText, { color: colors.background }]}>Öne çıkan</Text>
@@ -172,10 +239,7 @@ export default function ProductDetailScreen() {
         {/* Info card */}
         <View style={[s.card, {
           backgroundColor: colors.card, borderColor: colors.cardBorder,
-          ...Platform.select({
-            ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: isDark ? 0.15 : 0.06, shadowRadius: 10 },
-            android: { elevation: 4 },
-          }),
+          ...getShadowStyle(isDark, '#000', 3)
         }]}>
           {product.category && (
             <InfoItem label="Kategori" colors={colors}>
@@ -214,6 +278,16 @@ export default function ProductDetailScreen() {
         </View>
       </ScrollView>
 
+      {/* TAM EKRAN FOTOĞRAF GÖRÜNTÜLEYİCİ (MODAL) */}
+      <ImageView
+        images={productImages.map((img: any) => ({ uri: img.url || img.uri }))}
+        imageIndex={activeImageIndex}
+        visible={isViewerVisible}
+        onRequestClose={() => setIsViewerVisible(false)}
+        swipeToCloseEnabled={true}
+        doubleTapToZoomEnabled={true}
+      />
+
       {/* Modallar */}
       {product.variant && (
         <VariantSelectModal
@@ -238,7 +312,6 @@ export default function ProductDetailScreen() {
       {/* Sepete Ekle – Sabit alt bar */}
       <SafeAreaView edges={['bottom']} style={{ backgroundColor: colors.background }}>
         <View style={[s.bottomBar, { borderTopColor: colors.divider }]}>
-          {/* Fiyat detay butonu */}
           <TouchableOpacity
             onPress={() => { lightImpact(); setShowPriceModal(true); }}
             style={[s.priceDetailBtn, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
@@ -254,15 +327,7 @@ export default function ProductDetailScreen() {
                 {
                   backgroundColor: justAdded ? colors.success : GOLD,
                   opacity: pressed ? 0.85 : 1,
-                  ...Platform.select({
-                    ios: {
-                      shadowColor: justAdded ? colors.success : GOLD,
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.35,
-                      shadowRadius: 10,
-                    },
-                    android: { elevation: 6 },
-                  }),
+                  ...getShadowStyle(false, justAdded ? colors.success : GOLD, 4)
                 },
               ]}
             >
@@ -281,7 +346,6 @@ export default function ProductDetailScreen() {
     </View>
   );
 }
-
 
 function InfoItem({ label, children, colors }: { label: string; children: React.ReactNode; colors: any }) {
   return (
@@ -310,11 +374,12 @@ const s = StyleSheet.create({
     fontWeight: '600', fontSize: 17,
   },
 
-  scroll: { padding: 20, paddingBottom: 24 },
+  scroll: { padding: PADDING_HORIZONTAL, paddingBottom: 24 },
 
   imgWrap: { position: 'relative', marginBottom: 20 },
   imgBox: {
-    aspectRatio: 1,
+    width: IMAGE_BOX_WIDTH,
+    height: IMAGE_BOX_WIDTH,
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
@@ -325,6 +390,28 @@ const s = StyleSheet.create({
     width: 80, height: 80, borderRadius: 24,
     alignItems: 'center', justifyContent: 'center',
   },
+  
+  // EKLENEN STİLLER: Slider noktaları (Pagination)
+  paginationContainer: {
+    position: 'absolute',
+    bottom: 12,
+    flexDirection: 'row',
+    alignSelf: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  dotActive: {
+    width: 16,
+  },
+
   featBadge: {
     position: 'absolute', top: 14, right: 14,
     flexDirection: 'row', alignItems: 'center', gap: 5,
@@ -355,7 +442,6 @@ const s = StyleSheet.create({
   descLabel: { fontSize: 12, fontWeight: '500', marginBottom: 8 },
   descText: { fontSize: 15, lineHeight: 23 },
 
-  /* Bottom bar */
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',

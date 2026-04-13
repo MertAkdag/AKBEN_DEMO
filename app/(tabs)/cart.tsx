@@ -33,8 +33,6 @@ import type { ThemeColors } from '../../src/Constants/Theme';
 
 const TAB_BAR_HEIGHT = 100;
 const THUMB_SIZE = 88;
-const AnimPressable = Animated.createAnimatedComponent(Pressable);
-
 /* ═══════════════════════════════════════════
    Boş Sepet – Premium Empty State
    ═══════════════════════════════════════════ */
@@ -273,7 +271,7 @@ function CartItemCard({
           <SwipeDeleteAction colors={colors} onPress={handleRemove} />
         )}
       >
-        <AnimPressable
+        <Pressable
           style={[s.card, {
             backgroundColor: colors.card,
             borderColor: isDark ? colors.cardBorder : colors.border + '50',
@@ -286,10 +284,11 @@ function CartItemCard({
               },
               android: { elevation: 3 },
             }),
-          }, scaleStyle]}
+          }]}
           onPressIn={() => { scale.value = withSpring(0.98, { damping: 18, stiffness: 300 }); }}
           onPressOut={() => { scale.value = withSpring(1, { damping: 14, stiffness: 240 }); }}
         >
+          <Animated.View style={[s.cardScaleInner, scaleStyle]}>
           {/* ── Üst Bölüm: Thumbnail + Bilgi ── */}
           <View style={s.topRow}>
             {/* Thumbnail */}
@@ -354,7 +353,8 @@ function CartItemCard({
               <Text style={[s.removeBtnText, { color: colors.subtext }]}>Kaldır</Text>
             </Pressable>
           </View>
-        </AnimPressable>
+          </Animated.View>
+        </Pressable>
       </Swipeable>
     </Animated.View>
   );
@@ -403,8 +403,8 @@ function CartSummary({ totalCount, itemCount, colors, isDark, onCheckout }: {
             },
           ]}
         >
-          <Ionicons name="receipt-outline" size={18} color="#111" />
-          <Text style={[sm.checkoutText, { color: '#111' }]}>Siparişi Tamamla</Text>
+          <Ionicons name="receipt-outline" size={18} color="#fff" />
+          <Text style={[sm.checkoutText, { color: '#fff' }]}>Siparişi Tamamla</Text>
         </Pressable>
       </View>
     </Animated.View>
@@ -601,6 +601,7 @@ const s = StyleSheet.create({
     marginBottom: 14,
     overflow: 'hidden',
   },
+  cardScaleInner: { flex: 1 },
 
   /* ── Üst bölüm ── */
   topRow: {
