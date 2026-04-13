@@ -236,11 +236,19 @@ export function normalizeProduct(raw: any): Product {
 
 /** API'den gelen ham category verisini normalize et */
 export function normalizeCategory(raw: any): Category {
+  const idRaw = raw.id ?? raw.kategoriId;
+  const id = typeof idRaw === 'number' ? idRaw : idRaw != null ? Number(idRaw) : 0;
+  const ustRaw =
+    raw.ustKategoriId ?? raw.parentId ?? raw.parentCategoryId ?? raw.ust_kategori_id ?? null;
+  const ustKategoriId =
+    ustRaw == null || ustRaw === '' ? null : Number(ustRaw);
   return {
     ...raw,
-    name: raw.kategoriAdi ?? '',
-    slug: raw.kategoriKodu?.toLowerCase() ?? '',
-    productCount: raw.childCount ?? 0,
+    id: Number.isFinite(id) ? id : 0,
+    ustKategoriId: Number.isFinite(ustKategoriId as number) && (ustKategoriId as number) !== 0 ? (ustKategoriId as number) : null,
+    name: raw.kategoriAdi ?? raw.name ?? '',
+    slug: String(raw.kategoriKodu ?? raw.slug ?? '').toLowerCase(),
+    productCount: raw.childCount ?? raw.productCount ?? 0,
   };
 }
 
