@@ -4,13 +4,14 @@
  * Ürün detayında fiyat bileşenlerini gösterir.
  * İleriye dönük: priceService.getPriceBreakdown(productId) endpoint'ine bağlanacak.
  */
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Modal,
   TouchableOpacity,
+  Pressable,
   ScrollView,
   Platform,
 } from 'react-native';
@@ -19,6 +20,7 @@ import Animated, { FadeIn, SlideInDown, SlideOutDown } from 'react-native-reanim
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import type { Product } from '../../Types/catalog';
+import { lightImpact } from '../../Utils/haptics';
 
 interface PriceRow {
   label: string;
@@ -32,14 +34,14 @@ interface Props {
   visible: boolean;
   product: Product;
   onClose: () => void;
+  onAddToCart?: (quantity: number) => void;
+  alreadyInCart?: boolean;
   colors: any;
   isDark: boolean;
-  goldPrice?: number; // Anlık gram altın fiyatı
+  goldPrice?: number;
 }
 
-function buildPriceRows(product: Product, goldPrice?: number): PriceRow[] {
-  // TODO: Gerçek fiyat breakdown API'sinden gelecek
-  // API: GET /api/v1/products/:id/price-breakdown
+function buildPriceRows(product: Product, quantity: number, goldPrice?: number): PriceRow[] {
   const base = product.pricePerUnit;
   const isGold = product.unit?.symbol === 'gr' || product.unit?.name?.toLowerCase().includes('gram');
 
@@ -81,9 +83,9 @@ function buildPriceRows(product: Product, goldPrice?: number): PriceRow[] {
     color: '#10B981',
   });
 
-  const total = base;
+  const total = base * quantity;
   rows.push({
-    label: 'Toplam (1 adet)',
+    label: `Toplam (${quantity} adet)`,
     value: total > 0 ? `${total.toLocaleString('tr-TR')}₺` : '—',
     icon: 'checkmark-circle-outline',
     highlight: true,
@@ -92,8 +94,30 @@ function buildPriceRows(product: Product, goldPrice?: number): PriceRow[] {
   return rows;
 }
 
-export function PriceDetailModal({ visible, product, onClose, colors, isDark, goldPrice }: Props) {
-  const rows = buildPriceRows(product, goldPrice);
+export function PriceDetailModal({ visible, product, onClose, onAddToCart, alreadyInCart, colors, isDark, goldPrice }: Props) {
+  const [quantity, setQuantity] = useState(1);
+  const GOLD = colors.catalogGold ?? colors.primary;
+
+  useEffect(() => {
+    if (visible) setQuantity(1);
+  }, [visible]);
+
+  const rows = buildPriceRows(product, quantity, goldPrice);
+
+  const handleDecrease = useCallback(() => {
+    lightImpact();
+    setQuantity((q) => Math.max(1, q - 1));
+  }, []);
+
+  const handleIncrease = useCallback(() => {
+    lightImpact();
+    setQuantity((q) => q + 1);
+  }, []);
+
+  const handleAddToCart = useCallback(() => {
+    lightImpact();
+    onAddToCart?.(quantity);
+  }, [onAddToCart, quantity]);
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
@@ -177,6 +201,64 @@ export function PriceDetailModal({ visible, product, onClose, colors, isDark, go
                   Fiyatlar anlık piyasa koşullarına göre değişebilir. Sipariş anındaki fiyat geçerlidir.
                 </Text>
               </View>
+
+              {/* Adet Secici + Sepete Ekle */}
+              {onAddToCart && (
+                <View style={styles.cartSection}>
+                  <View style={styles.stepperRow}>
+                    <Text style={[styles.stepperLabel, { color: colors.text }]}>Adet</Text>
+                    <View style={[styles.stepper, { backgroundColor: colors.background, borderColor: colors.divider }]}>
+                      <Pressable
+                        onPress={handleDecrease}
+                        style={({ pressed }) => [styles.stepperBtn, pressed && { opacity: 0.5 }]}
+                        hitSlop={6}
+                      >
+                        <Ionicons
+                          name="remove"
+                          size={16}
+                          color={quantity <= 1 ? colors.divider : GOLD}
+                        />
+                      </Pressable>
+                      <View style={[styles.stepperDivider, { backgroundColor: colors.divider }]} />
+                      <View style={styles.stepperCountWrap}>
+                        <Text style={[styles.stepperCount, { color: colors.text }]}>{quantity}</Text>
+                      </View>
+                      <View style={[styles.stepperDivider, { backgroundColor: colors.divider }]} />
+                      <Pressable
+                        onPress={handleIncrease}
+                        style={({ pressed }) => [styles.stepperBtn, pressed && { opacity: 0.5 }]}
+                        hitSlop={6}
+                      >
+                        <Ionicons name="add" size={16} color={GOLD} />
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  <Pressable
+                    onPress={handleAddToCart}
+                    style={({ pressed }) => [
+                      styles.addToCartBtn,
+                      {
+                        backgroundColor: GOLD,
+                        opacity: pressed ? 0.85 : 1,
+                        ...Platform.select({
+                          ios: { shadowColor: GOLD, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8 },
+                          android: { elevation: 4 },
+                        }),
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={alreadyInCart ? 'cart' : 'cart-outline'}
+                      size={20}
+                      color={colors.background}
+                    />
+                    <Text style={[styles.addToCartText, { color: colors.background }]}>
+                      {alreadyInCart ? `${quantity} Adet Daha Ekle` : `Sepete Ekle (${quantity})`}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
             </ScrollView>
           </SafeAreaView>
         </Animated.View>
@@ -202,4 +284,28 @@ const styles = StyleSheet.create({
   rowValue: { fontSize: 14, fontWeight: '700' },
   note: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, marginTop: 16 },
   noteText: { fontSize: 12, fontWeight: '400', lineHeight: 16, flex: 1 },
+
+  cartSection: { marginTop: 20, gap: 14 },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stepperLabel: { fontSize: 15, fontWeight: '700' },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  stepperBtn: { width: 42, height: 40, alignItems: 'center', justifyContent: 'center' },
+  stepperDivider: { width: 1, height: '60%' },
+  stepperCountWrap: { minWidth: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  stepperCount: { fontSize: 16, fontWeight: '800' },
+  addToCartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    height: 54,
+    borderRadius: 16,
+  },
+  addToCartText: { fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 });

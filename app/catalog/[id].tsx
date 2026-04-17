@@ -89,10 +89,10 @@ export default function ProductDetailScreen() {
     transform: [{ scale: cartScale.value }],
   }));
 
-  const handleAddToCart = useCallback(() => {
+  const handleAddToCart = useCallback((qty = 1) => {
     if (!product) return;
     lightImpact();
-    addToCart(product);
+    addToCart(product, qty);
     setJustAdded(true);
     cartScale.value = withSequence(
       withSpring(0.93, { damping: 15, stiffness: 400 }),
@@ -100,6 +100,11 @@ export default function ProductDetailScreen() {
     );
     setTimeout(() => setJustAdded(false), 2000);
   }, [product, addToCart, cartScale]);
+
+  const handleModalAddToCart = useCallback((qty: number) => {
+    handleAddToCart(qty);
+    setShowPriceModal(false);
+  }, [handleAddToCart]);
 
   const handleFavorite = useCallback(() => {
     if (!product) return;
@@ -305,6 +310,8 @@ export default function ProductDetailScreen() {
         visible={showPriceModal}
         product={product}
         onClose={() => setShowPriceModal(false)}
+        onAddToCart={handleModalAddToCart}
+        alreadyInCart={alreadyInCart}
         colors={colors}
         isDark={isDark}
       />
@@ -321,7 +328,7 @@ export default function ProductDetailScreen() {
           </TouchableOpacity>
           <Animated.View style={[{ flex: 1 }, cartAnimStyle]}>
             <Pressable
-              onPress={handleAddToCart}
+              onPress={() => handleAddToCart()}
               style={({ pressed }) => [
                 s.addToCartBtn,
                 {

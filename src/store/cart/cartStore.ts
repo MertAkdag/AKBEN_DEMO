@@ -13,7 +13,7 @@ export interface CartItemState {
 interface CartState {
   items: CartItemState[];
   totalCount: number;
-  addToCart: (product: Product) => void;
+  addToCart: (product: Product, quantity?: number) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
@@ -25,12 +25,13 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       totalCount: 0,
-      addToCart: (product) => {
+      addToCart: (product, quantity = 1) => {
+        const qty = typeof quantity === 'number' && quantity > 0 ? Math.floor(quantity) : 1;
         set((state) => {
           const existing = state.items.find((i) => i.product.id === product.id);
           if (existing) {
             const items = state.items.map((i) =>
-              i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i,
+              i.product.id === product.id ? { ...i, quantity: i.quantity + qty } : i,
             );
             const totalCount = items.reduce((sum, i) => sum + i.quantity, 0);
             return { items, totalCount };
@@ -40,7 +41,7 @@ export const useCartStore = create<CartState>()(
             ...state.items,
             {
               product,
-              quantity: 1,
+              quantity: qty,
               capturedPricePerUnit: product.pricePerUnit,
               capturedAt: now,
             },
@@ -78,6 +79,15 @@ export const useCartStore = create<CartState>()(
         items: state.items,
         totalCount: state.totalCount,
       }),
+      merge: (persisted, current) => {
+        const p = persisted as Partial<CartState> | undefined;
+        if (!p?.items) return current;
+        const clean = p.items.filter(
+          (i) => typeof i.quantity === 'number' && i.quantity > 0 && i.product?.id,
+        );
+        const totalCount = clean.reduce((sum, i) => sum + i.quantity, 0);
+        return { ...current, items: clean, totalCount };
+      },
     },
   ),
 );
