@@ -92,6 +92,42 @@ export const OrderCardSkeleton = () => {
   );
 };
 
+export const ProductCardSkeleton = () => {
+  const { colors, isDark } = useTheme();
+  return (
+    <View style={styles.productCard}>
+      <View style={[styles.productCardInner, { backgroundColor: colors.card }]}>
+        <View style={[styles.productImgWrap, { backgroundColor: isDark ? colors.card : '#F7F5F0' }]}>
+          <Skeleton width={100} height={100} borderRadius={0} style={StyleSheet.absoluteFillObject as any} />
+        </View>
+        <View style={styles.productContent}>
+          <Skeleton width={50} height={9} style={{ marginBottom: 8 }} />
+          <Skeleton width={100} height={13} style={{ marginBottom: 8 }} />
+          <Skeleton width={64} height={24} borderRadius={8} />
+        </View>
+      </View>
+    </View>
+  );
+};
+
+export const CatalogSkeletonGrid = ({ count = 6 }: { count?: number }) => {
+  const rows = Array.from({ length: Math.ceil(count / 2) });
+  return (
+    <>
+      {rows.map((_, i) => (
+        <View key={i} style={styles.skeletonRow}>
+          <ProductCardSkeleton />
+          {i * 2 + 1 < count && <ProductCardSkeleton />}
+        </View>
+      ))}
+    </>
+  );
+};
+
+export const CategoryChipSkeleton = () => (
+  <Skeleton width={72} height={40} borderRadius={12} />
+);
+
 const styles = StyleSheet.create({
   statCard: {
     width: '48%',
@@ -132,5 +168,25 @@ const styles = StyleSheet.create({
   orderDivider: {
     height: 1,
     marginVertical: 12,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  productCard: {
+    flex: 1,
+    maxWidth: '48%',
+  },
+  productCardInner: {
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+  productImgWrap: {
+    aspectRatio: 1,
+    position: 'relative',
+  },
+  productContent: {
+    padding: 14,
   },
 });

@@ -90,7 +90,7 @@ function ProductCard({ product, index, colors, isDark, onPress }: {
       <View style={s.info}>
         {/* Haftanın ürünü badge */}
         <View style={[s.badge, { backgroundColor: GOLD + '14' }]}>
-          <Ionicons name="sparkles" size={11} color={GOLD} />
+          <Ionicons name="star" size={11} color={GOLD} />
           <Text style={[s.badgeText, { color: GOLD }]}>Haftanın Ürünü</Text>
         </View>
 

@@ -45,7 +45,7 @@ export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(400).delay(index * 60).springify()}
+      entering={FadeInDown.duration(400).delay(Math.min(index, 8) * 60).springify()}
       style={s.cardOuter}
     >
       <Pressable
@@ -98,8 +98,8 @@ export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
             />
           </Animated.View>
         </TouchableOpacity>
-        {/* Öne çıkan rozeti — sağ üst */}
-        {product.featured && (
+        {/* Öne çıkan rozet (şimdilik kapalı) — API'den gelen `product.featured` görünmemeli */}
+        {/* {product.featured && (
           <View style={[s.featBadge, {
             backgroundColor: GOLD,
             ...Platform.select({
@@ -107,13 +107,9 @@ export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
               android: { elevation: 4 },
             }),
           }]}>
-            <View style={{ backgroundColor: GOLD, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 }}>
-              <Text style={{ color: colors.background, fontSize: 9, fontWeight: '600', letterSpacing: 0.4 }}>
-                ÖNE ÇIKAN
-              </Text>
-            </View>
+            <Ionicons name="star" size={12} color={colors.background} />
           </View>
-        )}
+        )} */}
       </View>
 
       <View style={s.content}>
