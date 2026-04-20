@@ -1,7 +1,7 @@
 export type OrderStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
 
 
-export interface OrderMachine {
+export interface OrderProduct {
   id: string;
   name: string;
   model: string;
@@ -27,11 +27,11 @@ export interface Order {
   status: OrderStatus;
   assignedTo: string;
   deadline: string;
-  machineId: string;
+  productId: string;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
-  machine: OrderMachine;
+  product: OrderProduct;
   assignedUser: AssignedUser;
 }
 
@@ -63,7 +63,7 @@ export interface UpdateOrderPayload {
   description?: string;
   deadline?: string;
   assignedTo?: string;
-  machineId?: string;
+  productId?: string;
 }
 
 export type OrderFilterOption = 'All' | 'Pending' | 'In-Progress' | 'Completed';

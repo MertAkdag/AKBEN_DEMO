@@ -229,7 +229,7 @@ export default function ProductDetailScreen() {
               </View>
             )}
           </View>
-
+          {/* Öne çıkan rozet (şimdilik kapalı) — API'den gelen `product.featured` görünmemeli 
           {product.featured && (
             <View style={[s.featBadge, {
               backgroundColor: GOLD,
@@ -238,7 +238,7 @@ export default function ProductDetailScreen() {
               <Ionicons name="star" size={12} color={colors.background} />
               <Text style={[s.featText, { color: colors.background }]}>Öne çıkan</Text>
             </View>
-          )}
+          )} */}
         </View>
 
         {/* Info card */}

@@ -67,7 +67,7 @@ export const OrderCard = ({ order, onPress, index = 0 }: Props) => {
 
       <View style={s.infoGrid}>
         <InfoItem icon="person" label="Müşteri" value={order.assignedUser.name} colors={colors} />
-        <InfoItem icon="diamond-outline" label="Ürün" value={order.machine.name} colors={colors} />
+        <InfoItem icon="diamond-outline" label="Ürün" value={order.product.name} colors={colors} />
         <InfoItem icon="calendar" label="Teslim" value={formatDate(order.deadline)} colors={colors} />
       </View>
 

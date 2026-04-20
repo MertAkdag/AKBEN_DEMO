@@ -25,8 +25,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/features/auth/useAuth';
 
 // Kendi yazdığımız modern bileşeni import ediyoruz. (Dosya yolunu kendine göre ayarla)
-import ModernStoryViewer from '../story/ModernStoryViewer'; 
-import { id } from 'zod/v4/locales';
+import ModernStoryViewer from '../story/ModernStoryViewer';
 
 /* ─── Layout & Data ─── */
 const SW = Dimensions.get('window').width;

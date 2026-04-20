@@ -7,7 +7,7 @@ import { useResponsive } from '../../../src/Hooks/UseResponsive';
 import { useTheme } from '../../../src/Context/ThemeContext';
 import { transactionService } from '../../../src/Api/transactionService';
 import { Transaction, transactionTypeLabel } from '../../../src/Types/transaction';
-import { MachineCardSkeleton } from '../../../src/Components/Ui/Skeleton';
+import { TransactionCardSkeleton } from '../../../src/Components/Ui/Skeleton';
 import { ErrorState } from '../../../src/Components/Ui/ErrorState';
 import { lightImpact } from '../../../src/Utils/haptics';
 
@@ -65,7 +65,7 @@ export default function TransactionDetailScreen() {
       <View style={[s.container, { backgroundColor: colors.background }]}>
         <Stack.Screen options={{ headerShown: false }} />
         <Nav />
-        <View style={s.content}><MachineCardSkeleton /><MachineCardSkeleton /></View>
+        <View style={s.content}><TransactionCardSkeleton /><TransactionCardSkeleton /></View>
       </View>
     );
   }

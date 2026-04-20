@@ -7,7 +7,7 @@ import { Spacing } from '../../src/Constants/Spacing';
 import { transactionService } from '../../src/Api/transactionService';
 import { Transaction, TransactionType } from '../../src/Types/transaction';
 import { TransactionCard } from '../../src/Components/Cards/TransactionCard';
-import { MachineCardSkeleton } from '../../src/Components/Ui/Skeleton';
+import { TransactionCardSkeleton } from '../../src/Components/Ui/Skeleton';
 import { ErrorState } from '../../src/Components/Ui/ErrorState';
 import { EmptyState } from '../../src/Components/Ui/EmptyState';
 import { FilterSegment } from '../../src/Components/Ui/FilterSegmented';
@@ -73,7 +73,7 @@ export default function TransactionsListScreen() {
         <Nav />
         <View style={s.content}>
           <FilterSegment options={filterOptions} selected={selectedFilter} onSelect={(o) => setSelectedFilter(o as FilterOption)} />
-          <MachineCardSkeleton /><MachineCardSkeleton /><MachineCardSkeleton />
+          <TransactionCardSkeleton /><TransactionCardSkeleton /><TransactionCardSkeleton />
         </View>
       </View>
     );

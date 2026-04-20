@@ -38,7 +38,7 @@ export function useFilteredOrders(filter: OrderFilterOption, searchQuery: string
     const matchesSearch = searchQuery === '' || 
       order.title.toLowerCase().includes(searchLower) ||
       order.assignedUser.name.toLowerCase().includes(searchLower) ||
-      order.machine.name.toLowerCase().includes(searchLower);
+      order.product.name.toLowerCase().includes(searchLower);
 
     return matchesStatus && matchesSearch;
   });

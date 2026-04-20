@@ -60,16 +60,16 @@ export const ChartSkeleton = () => (
   </View>
 );
 
-export const MachineCardSkeleton = () => {
+export const TransactionCardSkeleton = () => {
   const { colors } = useTheme();
   return (
-    <View style={[styles.machineCard, { backgroundColor: colors.card }]}>
-      <View style={styles.machineHeader}>
+    <View style={[styles.transactionCard, { backgroundColor: colors.card }]}>
+      <View style={styles.transactionHeader}>
         <Skeleton width={160} height={18} />
         <Skeleton width={80} height={24} borderRadius={12} />
       </View>
       <Skeleton width={100} height={14} style={{ marginBottom: 12 }} />
-      <View style={styles.machineInfoRow}>
+      <View style={styles.transactionInfoRow}>
         <Skeleton width={120} height={14} />
         <Skeleton width={80} height={14} />
       </View>
@@ -140,18 +140,18 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 20,
   },
-  machineCard: {
+  transactionCard: {
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
   },
-  machineHeader: {
+  transactionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  machineInfoRow: {
+  transactionInfoRow: {
     flexDirection: 'row',
     gap: 20,
   },
