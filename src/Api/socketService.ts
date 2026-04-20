@@ -32,6 +32,11 @@ class HaremAltinSocket {
   private statusListeners: Set<StatusCallback> = new Set();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private lastPriceData: any = null;
+  // Reconnect denemeleri sırasında saniyede defalarca tetiklenen
+  // `connect_error` / `reconnect_attempt` event'leri log'u boğmasın diye
+  // aynı mesaj bir kez basıldıktan sonra durum değişene kadar sustururuz.
+  private lastLoggedError: string | null = null;
+  private lastLoggedReconnectAttempt = 0;
 
   /* ─── Bağlantı ─── */
   connect(): void {
@@ -57,6 +62,8 @@ class HaremAltinSocket {
     /* ─── Event handler'lar ─── */
     this.socket.on('connect', () => {
       log('Bağlantı başarılı! Socket ID:', this.socket?.id);
+      this.lastLoggedError = null;
+      this.lastLoggedReconnectAttempt = 0;
       this.updateStatus('connected');
       this.clearReconnectTimer();
     });
@@ -72,7 +79,12 @@ class HaremAltinSocket {
     });
 
     this.socket.on('connect_error', (error: Error) => {
-      log('Bağlantı hatası:', error.message);
+      // socket.io 1 sn aralıklarla tekrar deniyor; aynı hata mesajı
+      // defalarca log'a düşmesin — sadece mesaj değiştiğinde yaz.
+      if (this.lastLoggedError !== error.message) {
+        log('Bağlantı hatası:', error.message);
+        this.lastLoggedError = error.message;
+      }
       this.updateStatus('error');
     });
 
@@ -82,7 +94,14 @@ class HaremAltinSocket {
     });
 
     this.socket.on('reconnect_attempt', (attemptNumber: number) => {
-      log('Yeniden bağlanma denemesi:', attemptNumber);
+      // Her denemeyi değil, sadece 1., 3., 5., 10. denemeyi logla.
+      if (
+        attemptNumber === 1 ||
+        attemptNumber - this.lastLoggedReconnectAttempt >= 2
+      ) {
+        log('Yeniden bağlanma denemesi:', attemptNumber);
+        this.lastLoggedReconnectAttempt = attemptNumber;
+      }
       this.updateStatus('connecting');
     });
 

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { memo, useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform, TouchableOpacity } from 'react-native';
-import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring, withSequence } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Product } from '../../Types/catalog';
@@ -13,12 +13,24 @@ interface Props {
   product: Product;
   onPress: () => void;
   index?: number;
+  /**
+   * FadeInDown giriş animasyonu yalnızca ilk ekrana düşen kartlarda çalışsın diye
+   * üst bileşen bu flag'i kapatabilir. Scroll ile recycle edilen/gelen kartlarda
+   * animasyon tekrar oynamasın istemiyoruz.
+   */
+  animateEntrance?: boolean;
 }
 
-export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
+const ENTRANCE_DELAY_STEP = 60;
+const ENTRANCE_MAX_STEPS = 8;
+
+const ProductCardComponent = ({ product, onPress, index = 0, animateEntrance = true }: Props) => {
   const { calculateFontSize } = useResponsive();
   const { colors, isDark } = useTheme();
-  const { toggleFavorite, isFavorite } = useFavoritesStore();
+  // Sadece kendi kartımızın favori durumuna abone oluyoruz → başka bir ürün
+  // favoriye eklendiğinde bu kart yeniden render olmaz.
+  const favorited = useFavoritesStore((s) => s.productIds.includes(product.id));
+  const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
   const [imgErr, setImgErr] = useState(false);
   const scale = useSharedValue(1);
   const scaleStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -27,13 +39,11 @@ export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
   const cat = product.category?.name ?? '';
   const variant = product.variant?.name ?? '';
   const showImg = product.imageUrl && !imgErr;
-  const favorited = isFavorite(product.id);
 
-  /* Favori ikonu animasyonu */
   const favScale = useSharedValue(1);
   const favStyle = useAnimatedStyle(() => ({ transform: [{ scale: favScale.value }] }));
 
-  const handleFavoritePress = (e: any) => {
+  const handleFavoritePress = useCallback((e: any) => {
     e.stopPropagation();
     lightImpact();
     toggleFavorite(product);
@@ -41,13 +51,25 @@ export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
       withSpring(1.3, { damping: 8, stiffness: 300 }),
       withSpring(1, { damping: 12, stiffness: 200 }),
     );
-  };
+  }, [favScale, product, toggleFavorite]);
+
+  const handleImageError = useCallback(() => setImgErr(true), []);
+  const handlePressIn = useCallback(() => {
+    scale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
+    lightImpact();
+  }, [scale]);
+  const handlePressOut = useCallback(() => {
+    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+  }, [scale]);
+
+  // Sadece görünen ilk birkaç kartta FadeInDown oynatıyoruz; scroll ile recycle
+  // edilen cell'lerde animasyon tekrar başlamasın diye entering prop'u koşullu.
+  const entering = animateEntrance && index < ENTRANCE_MAX_STEPS
+    ? FadeInDown.duration(400).delay(index * ENTRANCE_DELAY_STEP).springify()
+    : undefined;
 
   return (
-    <Animated.View
-      entering={FadeInDown.duration(400).delay(Math.min(index, 8) * 60).springify()}
-      style={s.cardOuter}
-    >
+    <Animated.View entering={entering} style={s.cardOuter}>
       <Pressable
         style={[s.card, {
           backgroundColor: colors.card,
@@ -57,8 +79,8 @@ export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
             android: { elevation: 5 },
           }),
         }]}
-        onPressIn={() => { scale.value = withSpring(0.96, { damping: 15, stiffness: 300 }); lightImpact(); }}
-        onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         onPress={onPress}
         accessibilityRole="button"
       >
@@ -69,7 +91,7 @@ export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
             source={{ uri: product.imageUrl }}
             style={s.img}
             contentFit="cover"
-            onError={() => setImgErr(true)}
+            onError={handleImageError}
           />
         ) : (
           <View style={s.placeholder}>
@@ -133,6 +155,28 @@ export const ProductCard = ({ product, onPress, index = 0 }: Props) => {
     </Animated.View>
   );
 };
+
+/**
+ * Katalog listesi 2 kolonlu grid ve her socket tick'i + favori toggle'ında
+ * üst ağacın re-render ettirdiği 76+ kart var. Bu yüzden kartı memo'luyoruz.
+ *
+ * Custom equality: sadece ID, görsel, isim, kategori, variant ve index farklıysa
+ * yeniden render et. `onPress` parent tarafında useCallback ile stabil; yine de
+ * referans farkı render'ı tetiklemesin diye karşılaştırmıyoruz.
+ */
+export const ProductCard = memo(ProductCardComponent, (prev, next) => {
+  if (prev.index !== next.index) return false;
+  if (prev.animateEntrance !== next.animateEntrance) return false;
+  const a = prev.product;
+  const b = next.product;
+  return (
+    a.id === b.id &&
+    a.imageUrl === b.imageUrl &&
+    a.name === b.name &&
+    a.category?.name === b.category?.name &&
+    a.variant?.name === b.variant?.name
+  );
+});
 
 const s = StyleSheet.create({
   cardOuter: {

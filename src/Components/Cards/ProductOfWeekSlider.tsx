@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { memo, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
   Platform,
-  FlatList,
+  ScrollView,
   NativeSyntheticEvent,
   NativeScrollEvent,
   Dimensions,
@@ -30,13 +30,15 @@ interface ProductOfWeekSliderProps {
 }
 
 /* ─── Tek ürün kartı ─── */
-function ProductCard({ product, index, colors, isDark, onPress }: {
+type SliderCardProps = {
   product: Product;
   index: number;
   colors: any;
   isDark: boolean;
   onPress: () => void;
-}) {
+};
+
+function ProductCardComponent({ product, index, colors, isDark, onPress }: SliderCardProps) {
   const scale = useSharedValue(1);
   const scaleStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
@@ -126,13 +128,28 @@ function ProductCard({ product, index, colors, isDark, onPress }: {
   );
 }
 
+const ProductCard = memo(ProductCardComponent, (prev, next) => {
+  if (prev.index !== next.index) return false;
+  if (prev.isDark !== next.isDark) return false;
+  if (prev.colors !== next.colors) return false;
+  return (
+    prev.product.id === next.product.id &&
+    prev.product.imageUrl === next.product.imageUrl &&
+    prev.product.name === next.product.name
+  );
+});
+
 /* ─── Slider ana bileşen ─── */
 export function ProductOfWeekSlider({ products, isLoading }: ProductOfWeekSliderProps) {
   const { colors, isDark } = useTheme();
   const router = useRouter();
   const [page, setPage] = useState(0);
-  const flatRef = useRef<FlatList>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Haptic yalnızca kullanıcı parmakla sürüklerken çalışsın. Auto-scroll
+  // 4.5 sn'de bir `scrollTo` çağırdığı için onScroll tetiklenip haptik
+  // atıyordu → ekranda hiçbir şey yapmıyorken bile telefon titriyordu.
+  const isUserDraggingRef = useRef(false);
   const limitedProducts = useMemo(
     () => (products?.length ? products.slice(0, MAX_WEEK_PRODUCTS) : []),
     [products],
@@ -143,7 +160,7 @@ export function ProductOfWeekSlider({ products, isLoading }: ProductOfWeekSlider
     const newPage = Math.round(offset / (CARD_WIDTH + CARD_GAP));
     if (newPage !== page) {
       setPage(newPage);
-      lightImpact();
+      if (isUserDraggingRef.current) lightImpact();
     }
   }, [page]);
 
@@ -152,8 +169,8 @@ export function ProductOfWeekSlider({ products, isLoading }: ProductOfWeekSlider
     autoScrollRef.current = setInterval(() => {
       setPage((prev) => {
         const next = (prev + 1) % limitedProducts.length;
-        flatRef.current?.scrollToOffset({
-          offset: next * (CARD_WIDTH + CARD_GAP),
+        scrollRef.current?.scrollTo({
+          x: next * (CARD_WIDTH + CARD_GAP),
           animated: true,
         });
         return next;
@@ -167,6 +184,16 @@ export function ProductOfWeekSlider({ products, isLoading }: ProductOfWeekSlider
       autoScrollRef.current = null;
     }
   }, []);
+
+  const handleDragBegin = useCallback(() => {
+    isUserDraggingRef.current = true;
+    stopAutoScroll();
+  }, [stopAutoScroll]);
+
+  const handleDragEnd = useCallback(() => {
+    isUserDraggingRef.current = false;
+    startAutoScroll();
+  }, [startAutoScroll]);
 
   useEffect(() => {
     startAutoScroll();
@@ -195,13 +222,14 @@ export function ProductOfWeekSlider({ products, isLoading }: ProductOfWeekSlider
         </Text>
       </View>
 
-      {/* Slider */}
-      <FlatList
-        ref={flatRef}
-        data={limitedProducts}
-        keyExtractor={(item) => item.id}
+      {/*
+        5 öğelik slider için FlatList virtualization overkill ve auto-scroll
+        sırasında FillRateHelper "slow to update" uyarısını tetikliyordu.
+        Basit ScrollView + snapToInterval hem daha hızlı hem uyarısız.
+      */}
+      <ScrollView
+        ref={scrollRef}
         horizontal
-        pagingEnabled={false}
         showsHorizontalScrollIndicator={false}
         snapToInterval={CARD_WIDTH + CARD_GAP}
         snapToAlignment="start"
@@ -209,18 +237,20 @@ export function ProductOfWeekSlider({ products, isLoading }: ProductOfWeekSlider
         contentContainerStyle={s.listContent}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        onScrollBeginDrag={stopAutoScroll}
-        onScrollEndDrag={() => startAutoScroll()}
-        renderItem={({ item, index }) => (
+        onScrollBeginDrag={handleDragBegin}
+        onScrollEndDrag={handleDragEnd}
+      >
+        {limitedProducts.map((item, index) => (
           <ProductCard
+            key={item.id}
             product={item}
             index={index}
             colors={colors}
             isDark={isDark}
             onPress={() => handlePress(item.id)}
           />
-        )}
-      />
+        ))}
+      </ScrollView>
 
       {/* Sayfa göstergeleri */}
       <View style={s.dotsRow}>

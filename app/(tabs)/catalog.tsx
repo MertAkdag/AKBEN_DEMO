@@ -68,9 +68,19 @@ export default function CatalogScreen() {
   }, [selectedCategoryId, searchQuery]);
 
   const onProductPress = useCallback((product: Product) => { router.push(`/catalog/${product.id}`); }, [router]);
+  // İlk sayfadaki (ilk batch) kartlara giriş animasyonu uygula, sonraki
+  // sayfalarda doğrudan göster — scroll'da jank yaşanmasın.
+  const firstPageSize = productsPages?.pages[0]?.data.length ?? 0;
   const renderProduct = useCallback(
-    ({ item, index }: { item: Product; index: number }) => <ProductCard product={item} onPress={() => onProductPress(item)} index={index} />,
-    [onProductPress]
+    ({ item, index }: { item: Product; index: number }) => (
+      <ProductCard
+        product={item}
+        onPress={() => onProductPress(item)}
+        index={index}
+        animateEntrance={index < firstPageSize}
+      />
+    ),
+    [onProductPress, firstPageSize]
   );
 
   const emptyPrimary = useMemo(() => {

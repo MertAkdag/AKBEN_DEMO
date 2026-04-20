@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { memo, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -210,21 +210,23 @@ const sd = StyleSheet.create({
 /* ═══════════════════════════════════════════
    Sepet Öğesi – Premium Apple-Style Card
    ═══════════════════════════════════════════ */
-function CartItemCard({
-  item,
-  index,
-  colors,
-  isDark,
-  onRemove,
-  onUpdateQty,
-}: {
+type CartItemCardProps = {
   item: CartItem;
   index: number;
   colors: ThemeColors;
   isDark: boolean;
   onRemove: (id: string) => void;
   onUpdateQty: (id: string, qty: number) => void;
-}) {
+};
+
+function CartItemCardComponent({
+  item,
+  index,
+  colors,
+  isDark,
+  onRemove,
+  onUpdateQty,
+}: CartItemCardProps) {
   const GOLD = colors.catalogGold;
   const product = item.product;
   const cat = product.category?.name ?? '';
@@ -359,6 +361,32 @@ function CartItemCard({
     </Animated.View>
   );
 }
+
+/**
+ * Cart kartı memoize edilmiştir. `useCart` context'i socket fiyat tick'lerinde
+ * ve başka bir kartın miktarı değiştiğinde değer yayar; memo olmadan tüm
+ * kartlar her tick'te yeniden render oluyordu.
+ *
+ * Custom equality: item'ın kendi adet/fiyat/id bilgisi veya tema değişirse
+ * rerender et, yoksa atla. `onRemove`/`onUpdateQty` parent tarafında
+ * useCallback ile stabil, karşılaştırmaya gerek yok.
+ */
+const CartItemCard = memo(CartItemCardComponent, (prev, next) => {
+  if (prev.index !== next.index) return false;
+  if (prev.isDark !== next.isDark) return false;
+  if (prev.colors !== next.colors) return false;
+  const a = prev.item;
+  const b = next.item;
+  return (
+    a.product.id === b.product.id &&
+    a.quantity === b.quantity &&
+    a.capturedPricePerUnit === b.capturedPricePerUnit &&
+    a.product.imageUrl === b.product.imageUrl &&
+    a.product.name === b.product.name &&
+    a.product.category?.name === b.product.category?.name &&
+    a.product.variant?.name === b.product.variant?.name
+  );
+});
 
 /* ═══════════════════════════════════════════
    Sepet Özeti Footer

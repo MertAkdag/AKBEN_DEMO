@@ -202,7 +202,7 @@ export function PriceDetailModal({ visible, product, onClose, onAddToCart, alrea
                 </Text>
               </View>
 
-              {/* Adet Secici + Sepete Ekle */}
+              {/* Adet Secici + Sepete Ekle 
               {onAddToCart && (
                 <View style={styles.cartSection}>
                   <View style={styles.stepperRow}>
@@ -259,6 +259,7 @@ export function PriceDetailModal({ visible, product, onClose, onAddToCart, alrea
                   </Pressable>
                 </View>
               )}
+                */}
             </ScrollView>
           </SafeAreaView>
         </Animated.View>

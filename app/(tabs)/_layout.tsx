@@ -5,7 +5,6 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  withSequence,
   interpolate,
   Extrapolation,
   runOnJS,
@@ -57,32 +56,14 @@ const TABS: TabDef[] = [
 
 /* ─── Badge bileşeni ─── */
 function TabBadge({ count, color, bgColor }: { count: number; color: string; bgColor: string }) {
-  const badgeScale = useSharedValue(0);
-
-  useEffect(() => {
-    if (count > 0) {
-      badgeScale.value = withSequence(
-        withSpring(1.25, { damping: 12, stiffness: 350 }),
-        withSpring(1, { damping: 14, stiffness: 200 }),
-      );
-    } else {
-      badgeScale.value = withTiming(0, { duration: 200 });
-    }
-  }, [count]);
-
-  const badgeAnim = useAnimatedStyle(() => ({
-    transform: [{ scale: badgeScale.value }],
-    opacity: interpolate(badgeScale.value, [0, 0.5, 1], [0, 0.8, 1], Extrapolation.CLAMP),
-  }));
-
   if (count <= 0) return null;
 
   return (
-    <Animated.View style={[styles.badge, { backgroundColor: bgColor }, badgeAnim]}>
+    <View style={[styles.badge, { backgroundColor: bgColor }]}>
       <Text style={[styles.badgeText, { color }]}>
         {count > 99 ? '99+' : count}
       </Text>
-    </Animated.View>
+    </View>
   );
 }
 
