@@ -1,4 +1,4 @@
-import type { OrderStatus } from '../../../src/Types/ecommerce-order';
+import type { OrderStatus } from '../../Types/ecommerce-order';
 
 export const getStatusInfo = (status: OrderStatus) => {
   switch (status) {

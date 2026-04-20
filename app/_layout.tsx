@@ -41,10 +41,8 @@ function InnerLayout() {
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
         <Stack.Screen name="orders" options={{ headerShown: false }} />
         <Stack.Screen name="orders/[id]" options={{ headerShown: true, title: 'Sipariş Detayı', headerBackTitle: 'Siparişler' }} />
-        <Stack.Screen name="shipping" options={{ headerShown: false }} />
+        <Stack.Screen name="shipping/index" options={{ headerShown: false }} />
         <Stack.Screen name="shipping/[id]" options={{ headerShown: true, title: 'Kargo Takip', headerBackTitle: 'Sevkiyatlar' }} />
-        <Stack.Screen name="(auth)/forgot-password" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)/reset-password" options={{ headerShown: false }} />
         <Stack.Screen name="profile/edit" options={{ headerShown: false }} />
         <Stack.Screen name="profile/change-password" options={{ headerShown: false }} />
         <Stack.Screen name="notifications/[id]" options={{ headerShown: false }} />

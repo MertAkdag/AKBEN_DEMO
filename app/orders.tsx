@@ -19,7 +19,7 @@ import { ScreenHeader } from '../src/Shared/Header';
 import { useTheme } from '../src/Context/ThemeContext';
 import { useOrdersStore } from '../src/store/orders/ordersStore';
 import type { EcommerceOrder, OrderFilter } from '../src/Types/ecommerce-order';
-import { getStatusInfo } from './orders/components/OrderStatusTimeline';
+import { getStatusInfo } from '../src/features/orders/statusInfo';
 import { lightImpact } from '../src/Utils/haptics';
 
 const TAB_BAR_HEIGHT = 100;

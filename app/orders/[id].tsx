@@ -18,7 +18,7 @@ import { Spacing } from '../../src/Constants/Spacing';
 import { useTheme } from '../../src/Context/ThemeContext';
 import { useOrdersStore } from '../../src/store/orders/ordersStore';
 import { useCartStore } from '../../src/store/cart/cartStore';
-import { getStatusInfo } from './components/OrderStatusTimeline';
+import { getStatusInfo } from '../../src/features/orders/statusInfo';
 import type { OrderStatus } from '../../src/Types/ecommerce-order';
 import { lightImpact } from '../../src/Utils/haptics';
 import { useResponsive } from '../../src/Hooks/UseResponsive';
