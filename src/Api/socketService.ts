@@ -94,7 +94,6 @@ class HaremAltinSocket {
 
     /* ─── Fiyat verisi ─── */
     this.socket.on('price_changed', (data: any) => {
-      log('price_changed alındı');
       this.lastPriceData = data;
       this.priceListeners.forEach(cb => {
         try { cb(data); } catch (e) { log('Listener hatası:', e); }

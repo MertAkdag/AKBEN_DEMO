@@ -174,12 +174,6 @@ function parseSocketData(raw: any): FinanceItem[] {
   const eur = toItem(data['EURTRY'], 'eur', 'Euro', 'EUR / TRY', 'logo-euro');
   if (eur) items.push(eur);
 
-  log(
-    'Socket parse:',
-    items.length, 'kalem |',
-    items.map(i => `${i.label}=${i.sell}`).join(', '),
-  );
-
   return items;
 }
 
@@ -241,33 +235,28 @@ export const GoldPriceProvider = ({ children }: PropsWithChildren) => {
     });
 
     // Fiyat verisi dinle
+    // Not: HaremAltın socket'i ilgisiz kodları (XAUXAG, GBPTRY, CHFTRY vb.) de yayınlar.
+    // parseSocketData bu durumda 0 kalem döner; ilgimizi çekmediği için sessizce yok sayılır.
     const unsubPrice = haremSocket.onPriceChanged((data) => {
       const parsed = parseSocketData(data);
-      if (parsed.length > 0) {
-        socketHasData.current = true;
-        // Partial update: mevcut items'ı güncelle, eksik olanları koru
-        setItems(prev => {
-          // Eğer önceki veri yoksa direkt set et
-          if (prev.length === 0) return parsed;
-          // Mevcut items'ın kopyasını al, yeni verileri merge et
-          const merged = [...prev];
-          for (const newItem of parsed) {
-            const idx = merged.findIndex(m => m.key === newItem.key);
-            if (idx >= 0) {
-              merged[idx] = newItem;
-            } else {
-              merged.push(newItem);
-            }
-          }
-          return merged;
-        });
-        setSource('socket');
-        setIsFallback(false);
-        setLastUpdate(new Date());
-        setIsLoading(false);
-      } else {
-        log('Socket verisi parse edilemedi, raw:', JSON.stringify(data).slice(0, 200));
-      }
+      if (parsed.length === 0) return;
+
+      socketHasData.current = true;
+      // Partial update: mevcut items'ı güncelle, eksik olanları koru
+      setItems(prev => {
+        if (prev.length === 0) return parsed;
+        const merged = [...prev];
+        for (const newItem of parsed) {
+          const idx = merged.findIndex(m => m.key === newItem.key);
+          if (idx >= 0) merged[idx] = newItem;
+          else merged.push(newItem);
+        }
+        return merged;
+      });
+      setSource('socket');
+      setIsFallback(false);
+      setLastUpdate(new Date());
+      setIsLoading(false);
     });
 
     // Socket bağlantısı başlat
