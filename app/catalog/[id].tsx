@@ -381,7 +381,7 @@ export default function ProductDetailScreen() {
           </View>
         </View>
 
-        {/* ÜST META: SKU + Stok */}
+        {/* ÜST META: SKU + Stok 
         <View style={s.metaRow}>
           {!!product.urunKodu && (
             <View style={[s.skuChip, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
@@ -396,7 +396,7 @@ export default function ProductDetailScreen() {
             </View>
           )}
         </View>
-
+*/}
         {/* Info card */}
         <View
           style={[
@@ -893,8 +893,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 36,
+    paddingTop: 22,
     borderTopWidth: 1,
   },
   priceDetailBtn: {
@@ -930,7 +929,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    height: 54,
+    height: 56,
     borderRadius: 16,
   },
   addToCartText: {
