@@ -18,16 +18,11 @@ import { ScreenHeader } from '../../src/Shared/Header';
 import { SearchInput } from '../../src/Components/Ui/SearchInput';
 import { ProductCard } from '../../src/Components/Cards/ProductCard';
 import { CatalogSkeletonGrid, CategoryChipSkeleton } from '../../src/Components/Ui/Skeleton';
-import {
-  useCatalogProducts,
-  useCategories,
-  useCatalogKategoriPresence,
-} from '../../src/Hooks/useCatalog';
+import { useCatalogProducts, useCategories } from '../../src/Hooks/useCatalog';
 import { Product } from '../../src/Types/catalog';
 import { useResponsive } from '../../src/Hooks/UseResponsive';
 import { useTheme } from '../../src/Context/ThemeContext';
 import { logger } from '../../src/Utils/logger';
-import { chipHasProductsInPresence } from '../../src/Constants/categoryProductKategoriMap';
 
 const TAB_BAR_HEIGHT = 100;
 const SKELETON_COUNT = 6;
@@ -48,17 +43,11 @@ export default function CatalogScreen() {
     fetchNextPage,
     refetch,
     isRefetching,
-  } = useCatalogProducts(selectedCategoryId, searchQuery, categories);
-  const {
-    data: presence,
-    refetch: refetchPresence,
-    isRefetching: presenceRefetching,
-  } = useCatalogKategoriPresence();
+  } = useCatalogProducts(selectedCategoryId, searchQuery);
   const products = useMemo(
     () => productsPages?.pages.flatMap((p) => p.data) ?? [],
     [productsPages]
   );
-  const presenceIds = presence?.ids;
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -91,15 +80,12 @@ export default function CatalogScreen() {
 
   const emptyDetail = useMemo(() => {
     if (searchQuery.trim() || selectedCategoryId == null || productsLoading) return null;
-    if (!chipHasProductsInPresence(selectedCategoryId, presenceIds ?? [], categories)) {
-      return 'Bu kategori için henüz ürün tanımlanmamış. Farklı bir kategori deneyebilirsiniz.';
-    }
     return 'Filtreyi veya arama metnini değiştirerek tekrar deneyebilirsiniz.';
-  }, [searchQuery, selectedCategoryId, productsLoading, presenceIds, categories]);
+  }, [searchQuery, selectedCategoryId, productsLoading]);
 
   const onRefreshCatalog = useCallback(async () => {
-    await Promise.all([refetch(), refetchPresence()]);
-  }, [refetch, refetchPresence]);
+    await refetch();
+  }, [refetch]);
 
   const onEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -139,31 +125,25 @@ export default function CatalogScreen() {
                   Tümü
                 </Text>
               </TouchableOpacity>
-              {categories?.map((cat) => {
-                const chipMuted =
-                  presenceIds != null &&
-                  !chipHasProductsInPresence(cat.id, presenceIds, categories) &&
-                  selectedCategoryId !== cat.id;
-                return (
-                  <TouchableOpacity
-                    key={cat.id}
-                    style={[
-                      s.chip,
-                      { backgroundColor: colors.card, borderColor: colors.border, opacity: chipMuted ? 0.52 : 1 },
-                      selectedCategoryId === cat.id && { backgroundColor: colors.primary + '22', borderColor: colors.primary, opacity: 1 },
-                    ]}
-                    onPress={() => {
-                      logger.info('[Catalog UI] Kategori chip', { id: cat.id, ad: cat.name });
-                      setSelectedCategoryId(cat.id);
-                    }}
-                  >
-                    <Text style={[s.chipText, { fontSize: calculateFontSize(13), color: colors.subtext },
-                    selectedCategoryId === cat.id && { color: colors.primary }]}>
-                      {cat.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+              {categories?.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[
+                    s.chip,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    selectedCategoryId === cat.id && { backgroundColor: colors.primary + '22', borderColor: colors.primary },
+                  ]}
+                  onPress={() => {
+                    logger.info('[Catalog UI] Kategori chip', { id: cat.id, ad: cat.name });
+                    setSelectedCategoryId(cat.id);
+                  }}
+                >
+                  <Text style={[s.chipText, { fontSize: calculateFontSize(13), color: colors.subtext },
+                  selectedCategoryId === cat.id && { color: colors.primary }]}>
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </>
           )}
         </ScrollView>
@@ -171,7 +151,7 @@ export default function CatalogScreen() {
         <SearchInput value={searchQuery} onChangeText={setSearchQuery} placeholder="Ürün ara..." activeFilterCount={activeFilterCount} />
       </>
     ),
-    [colors, categories, categoriesLoading, selectedCategoryId, searchQuery, calculateFontSize, presenceIds, activeFilterCount]
+    [colors, categories, categoriesLoading, selectedCategoryId, searchQuery, calculateFontSize, activeFilterCount]
   );
 
   const ListFooter = useMemo(() => {
@@ -212,7 +192,7 @@ export default function CatalogScreen() {
         }
         refreshControl={
           <RefreshControl
-            refreshing={(isRefetching && !productsLoading) || presenceRefetching}
+            refreshing={isRefetching && !productsLoading}
             onRefresh={onRefreshCatalog}
             tintColor={colors.primary}
             colors={[colors.primary]}

@@ -1,24 +1,13 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { catalogService } from '../Api/catalogService';
-import {
-  categoryTreeSignature,
-  getProductKategoriIdsForChip,
-} from '../Constants/categoryProductKategoriMap';
-import type { Category } from '../Types/catalog';
 
 export const catalogKeys = {
   all: ['catalog'] as const,
   categories: () => [...catalogKeys.all, 'categories'] as const,
-  products: (filters: {
-    categoryId?: number;
-    search?: string;
-    page?: number;
-    clientMulti?: boolean;
-    treeSig?: string;
-  }) => [...catalogKeys.all, 'products', filters] as const,
+  products: (filters: { categoryId?: number; search?: string }) =>
+    [...catalogKeys.all, 'products', filters] as const,
   product: (id: string) => [...catalogKeys.all, 'product', id] as const,
   featured: () => [...catalogKeys.all, 'featured'] as const,
-  kategoriPresence: () => [...catalogKeys.all, 'kategori-presence'] as const,
 };
 
 export function useCategories() {
@@ -30,34 +19,18 @@ export function useCategories() {
   });
 }
 
-export function useCatalogProducts(
-  categoryId?: number,
-  search = '',
-  categories?: Category[],
-) {
-  const kidList = categoryId != null ? getProductKategoriIdsForChip(categoryId, categories) : null;
-  const clientMulti = kidList != null && kidList.length > 1;
-  const treeSig = categoryTreeSignature(categories);
-
+export function useCatalogProducts(categoryId?: number, search = '') {
   return useInfiniteQuery({
-    queryKey: catalogKeys.products({ categoryId, search, clientMulti, treeSig }),
-    queryFn: ({ pageParam }) => {
-      const page = pageParam as number;
-      if (categoryId == null) {
-        return catalogService.getProducts(page, 20, undefined, search || undefined);
-      }
-      const ids = getProductKategoriIdsForChip(categoryId, categories)!;
-      if (clientMulti) {
-        return catalogService.getProductsClientFilteredByKategoriIds(ids, search, page, 20);
-      }
-      return catalogService.getProducts(page, 20, String(ids[0]), search || undefined);
-    },
+    queryKey: catalogKeys.products({ categoryId, search }),
+    queryFn: ({ pageParam }) =>
+      catalogService.getProducts(
+        pageParam as number,
+        20,
+        categoryId != null ? String(categoryId) : undefined,
+        search || undefined,
+      ),
     initialPageParam: 1,
-    getNextPageParam: (lastPage) => {
-      const pg = lastPage.meta?.pagination;
-      if (!pg?.hasNextPage || !pg.nextPage) return undefined;
-      return pg.nextPage;
-    },
+    getNextPageParam: (lastPage) => lastPage.meta?.pagination?.nextPage ?? undefined,
     staleTime: 1000 * 60 * 2,
   });
 }
@@ -78,14 +51,5 @@ export function useFeaturedProducts() {
     queryFn: () => catalogService.getFeaturedProducts(),
     staleTime: 1000 * 60 * 2,
     select: (data) => data.data,
-  });
-}
-
-/** Tümü modundaki tüm sayfalar: hangi kategoriId’lerde ürün var (chip / API uyumu) */
-export function useCatalogKategoriPresence() {
-  return useQuery({
-    queryKey: catalogKeys.kategoriPresence(),
-    queryFn: () => catalogService.getProductKategoriPresenceSummary(),
-    staleTime: 1000 * 60 * 5,
   });
 }
