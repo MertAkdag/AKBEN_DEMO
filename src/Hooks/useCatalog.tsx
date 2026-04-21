@@ -4,6 +4,8 @@ import { catalogService } from '../Api/catalogService';
 export const catalogKeys = {
   all: ['catalog'] as const,
   categories: () => [...catalogKeys.all, 'categories'] as const,
+  subCategories: (parentId?: number) => [...catalogKeys.all, 'subCategories', parentId ?? null] as const,
+  brands: () => [...catalogKeys.all, 'brands'] as const,
   products: (filters: { categoryId?: number; search?: string }) =>
     [...catalogKeys.all, 'products', filters] as const,
   product: (id: string) => [...catalogKeys.all, 'product', id] as const,
@@ -15,6 +17,29 @@ export function useCategories() {
     queryKey: catalogKeys.categories(),
     queryFn: () => catalogService.getCategories(),
     staleTime: 1000 * 60 * 5,
+    select: (data) => data.data,
+  });
+}
+
+/**
+ * Alt kategorileri getirir. Backend `categoryId` parametresi ile verilen
+ * üst kategorinin direkt alt kategorilerini döner.
+ */
+export function useSubCategories(parentId?: number) {
+  return useQuery({
+    queryKey: catalogKeys.subCategories(parentId),
+    queryFn: () => catalogService.getCategories(parentId),
+    enabled: parentId != null,
+    staleTime: 1000 * 60 * 5,
+    select: (data) => data.data,
+  });
+}
+
+export function useBrands() {
+  return useQuery({
+    queryKey: catalogKeys.brands(),
+    queryFn: () => catalogService.getBrands(),
+    staleTime: 1000 * 60 * 10,
     select: (data) => data.data,
   });
 }
